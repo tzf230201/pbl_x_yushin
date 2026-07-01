@@ -17,6 +17,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.xr.enabled = true; // enable WebXR (AR) support
 
 // ---- Scene ----
 const scene = new THREE.Scene();
@@ -206,6 +207,126 @@ fsButton.addEventListener('click', toggleFullscreen);
 document.addEventListener('fullscreenchange', () => { updateFullscreenUI(); resize(); });
 document.addEventListener('webkitfullscreenchange', () => { updateFullscreenUI(); resize(); });
 
+// ---- AR (WebXR) ----
+const arBtn   = document.getElementById('arBtn');
+const arHint  = document.getElementById('arHint');
+const arExit  = document.getElementById('arExit');
+
+// Placement reticle (a ring that snaps to detected surfaces)
+const reticle = new THREE.Mesh(
+  new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0x4f9dff })
+);
+reticle.matrixAutoUpdate = false;
+reticle.visible = false;
+scene.add(reticle);
+
+let hitTestSource = null;
+let hitTestRequested = false;
+let modelPlaced = false;
+const savedModelState = { pos: new THREE.Vector3(), scale: new THREE.Vector3(), had: false };
+
+// Show the AR button only if the device actually supports immersive AR
+if (navigator.xr && navigator.xr.isSessionSupported) {
+  navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+    arBtn.hidden = !supported;
+  }).catch(() => { arBtn.hidden = true; });
+}
+
+async function startAR() {
+  if (!currentModel) {
+    alert('Load a model first, then tap AR to place it in your space.');
+    return;
+  }
+  try {
+    const session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: document.body },
+    });
+    await renderer.xr.setSession(session);
+    session.addEventListener('end', onAREnd);
+    onARStart();
+  } catch (err) {
+    console.error(err);
+    alert('Could not start AR. Make sure you granted camera permission and your device supports ARCore.');
+  }
+}
+
+function onARStart() {
+  document.body.classList.add('in-ar');
+  arHint.classList.remove('hidden');
+  scene.background = null;   // let the camera feed show through
+  grid.visible = false;
+  modelPlaced = false;
+
+  // Remember how the model looked in the normal viewer so we can restore later
+  savedModelState.had = true;
+  savedModelState.pos.copy(currentModel.position);
+  savedModelState.scale.copy(currentModel.scale);
+
+  // Hide the model until the user taps a surface to place it
+  currentModel.visible = false;
+}
+
+function onAREnd() {
+  document.body.classList.remove('in-ar');
+  arHint.classList.add('hidden');
+  scene.background = new THREE.Color(0x0e1116);
+  grid.visible = true;
+  reticle.visible = false;
+  hitTestSource = null;
+  hitTestRequested = false;
+
+  if (currentModel && savedModelState.had) {
+    currentModel.visible = true;
+    currentModel.position.copy(savedModelState.pos);
+    currentModel.scale.copy(savedModelState.scale);
+  }
+  resize();
+}
+
+// Tap in AR -> place / move the model onto the reticle
+const arController = renderer.xr.getController(0);
+arController.addEventListener('select', () => {
+  if (!reticle.visible || !currentModel) return;
+  currentModel.visible = true;
+  currentModel.position.setFromMatrixPosition(reticle.matrix);
+  modelPlaced = true;
+});
+scene.add(arController);
+
+function updateHitTest(frame) {
+  const session = renderer.xr.getSession();
+  const refSpace = renderer.xr.getReferenceSpace();
+
+  if (!hitTestRequested) {
+    session.requestReferenceSpace('viewer').then((viewerSpace) => {
+      session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+        hitTestSource = source;
+      });
+    });
+    hitTestRequested = true;
+  }
+
+  if (hitTestSource) {
+    const results = frame.getHitTestResults(hitTestSource);
+    if (results.length > 0) {
+      const pose = results[0].getPose(refSpace);
+      reticle.visible = !modelPlaced; // hide reticle once placed
+      reticle.matrix.fromArray(pose.transform.matrix);
+    } else {
+      reticle.visible = false;
+    }
+  }
+}
+
+arBtn.addEventListener('click', startAR);
+arExit.addEventListener('click', () => {
+  const session = renderer.xr.getSession();
+  if (session) session.end();
+});
+
 // ---- Resize ----
 function resize() {
   const w = viewer.clientWidth;
@@ -218,9 +339,9 @@ window.addEventListener('resize', resize);
 resize();
 
 // ---- Render loop ----
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
+// setAnimationLoop drives both the normal viewer and the WebXR (AR) session.
+renderer.setAnimationLoop((timestamp, frame) => {
+  if (frame) updateHitTest(frame);   // frame is only present during an XR session
+  if (!renderer.xr.isPresenting) controls.update();
   renderer.render(scene, camera);
-}
-animate();
+});

@@ -61,6 +61,17 @@ body {
 .btn-fs { display: inline-flex; align-items: center; gap: 6px; }
 .fs-icon { font-size: 16px; line-height: 1; }
 
+.btn-ar {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(79, 157, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.btn-ar:hover { background: rgba(79, 157, 255, 0.22); }
+.btn-ar[hidden] { display: none; }
+.ar-icon { font-size: 15px; line-height: 1; }
+
 @media (max-width: 640px) {
   .title { font-size: 14px; }
   .btn { padding: 7px 11px; font-size: 13px; }
@@ -68,6 +79,37 @@ body {
   .btn-fs .fs-label { display: none; }
   .btn-ghost { display: none; }        /* hide WebXR text link on small screens */
 }
+
+/* ---- AR overlay (shown during a WebXR AR session) ---- */
+.ar-hint {
+  position: absolute;
+  left: 50%; top: max(20px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px;
+  background: rgba(14, 17, 22, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 30;
+}
+.ar-hint.hidden { display: none; }
+.ar-exit {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* While in AR, hide the normal viewer UI so the camera feed stays clean */
+body.in-ar .topbar,
+body.in-ar .zoom-controls,
+body.in-ar .hud,
+body.in-ar .drop-hint { display: none; }
 
 /* Immersive look while in fullscreen */
 body.is-fullscreen .topbar { padding: 8px 14px; }
