@@ -8,6 +8,8 @@ const SCANS = [
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",
+    viewDistance: 1.7,
+    cameraHeight: 0.85,
   },
   {
     id: "main",
@@ -15,7 +17,7 @@ const SCANS = [
     file: "./public/assets/scan.glb",
     position: "0 0 0",
     rotation: "0 0 0",
-    scale: "0.01 0.01 0.01",
+    scale: "1 1 1",
   },
   {
     id: "duck",
@@ -23,7 +25,7 @@ const SCANS = [
     file: "./public/assets/scans/duck.glb",
     position: "0 0 0",
     rotation: "0 0 0",
-    scale: "0.01 0.01 0.01",
+    scale: "1 1 1",
   },
   {
     id: "box",
@@ -47,6 +49,8 @@ const loadingScreen = document.querySelector("#loading-screen");
 const loadingMessage = document.querySelector("#loading-message");
 const scanSelect = document.querySelector("#scan-select");
 const scanModel = document.querySelector("#scan-model");
+const cameraRig = document.querySelector("#rig");
+const camera = document.querySelector("#camera");
 
 function showLoadingScreen(scan) {
   loadingScreen.classList.remove("is-hidden");
@@ -87,6 +91,47 @@ function applyScanTransform(scan) {
   scanModel.setAttribute("scale", scan.scale);
 }
 
+function setCameraAngle(pitchDeg, yawDeg = 0) {
+  const lookControls = camera.components["look-controls"];
+  const pitchRad = AFRAME.THREE.MathUtils.degToRad(pitchDeg);
+  const yawRad = AFRAME.THREE.MathUtils.degToRad(yawDeg);
+
+  if (lookControls) {
+    lookControls.pitchObject.rotation.x = pitchRad;
+    lookControls.yawObject.rotation.y = yawRad;
+  }
+
+  camera.object3D.rotation.set(pitchRad, yawRad, 0);
+}
+
+function frameCameraToModel(scan) {
+  const box = new AFRAME.THREE.Box3().setFromObject(scanModel.object3D);
+
+  if (box.isEmpty()) {
+    cameraRig.setAttribute("position", "0 0 3");
+    camera.setAttribute("position", "0 1.2 0");
+    setCameraAngle(-18);
+    return;
+  }
+
+  const size = new AFRAME.THREE.Vector3();
+  const center = new AFRAME.THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+
+  const maxSize = Math.max(size.x, size.y, size.z, 0.25);
+  const distance = scan.viewDistance || Math.max(maxSize * 1.45, 1.6);
+  const cameraHeight = scan.cameraHeight || Math.max(center.y + maxSize * 0.25, 0.9);
+  const targetHeight = center.y;
+  const pitchDeg = AFRAME.THREE.MathUtils.radToDeg(
+    Math.atan2(targetHeight - cameraHeight, distance),
+  );
+
+  cameraRig.setAttribute("position", `${center.x} 0 ${center.z + distance}`);
+  camera.setAttribute("position", `0 ${cameraHeight} 0`);
+  setCameraAngle(pitchDeg);
+}
+
 function loadScan(scan) {
   showLoadingScreen(scan);
   updateUrl(scan);
@@ -115,7 +160,10 @@ const firstScan = getScanFromUrl();
 scanSelect.value = firstScan.id;
 
 scanModel.addEventListener("model-loaded", () => {
+  const scan = SCANS.find((item) => item.id === scanSelect.value) || SCANS[0];
+
   scanModel.object3D.visible = true;
+  frameCameraToModel(scan);
   loadingMessage.textContent = "Scan loaded.";
   window.setTimeout(hideLoadingScreen, 250);
 });
