@@ -2,6 +2,20 @@
 
 A small static WebXR/VR viewer for 3D scans exported from Scaniverse on iPhone.
 
+Live demo:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
+```
+
+Gaussian Splat demo:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
+```
+
+![Asahigaoka GLB viewer](docs/images/asahigaoka-glb.png)
+
 It supports two workflows:
 
 - Mesh / GLB scans through the main A-Frame viewer.
@@ -25,38 +39,40 @@ For the easiest GitHub Pages workflow, export `PLY` from Scaniverse.
 
 GitHub blocks normal Git pushes for files over 100 MB. If your `PLY` is too large, export `SPZ` from Scaniverse and convert it to `SOG` locally before pushing.
 
-## Where to Put the GLB File
+## Current Project Scan
 
-Export your main Scaniverse model as a GLB file and place it here:
+The current Asahigaoka files are:
 
 ```text
-public/assets/scan.glb
+public/assets/scans/Asahigaoka.glb
+public/assets/splats/Asahigaoka.ply
 ```
 
-The viewer already includes this as `Example main`.
+Direct Asahigaoka links:
 
-For multiple scans, put additional GLB files in:
+```text
+https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
+```
+
+## Where to Put GLB Files
+
+Export your Scaniverse mesh as a GLB file and place it in:
 
 ```text
 public/assets/scans/
 ```
 
+Then add it to `PROJECT_SCANS` near the top of `viewer.js`.
+
 Example:
 
-```text
-public/assets/scans/room-a.glb
-public/assets/scans/machine.glb
-public/assets/scans/table.glb
-```
-
-If a model appears too large, too small, rotated, or away from the camera, edit the matching entry in `SCANS` near the top of `viewer.js`:
-
 ```js
-const SCANS = [
+const PROJECT_SCANS = [
   {
-    id: "main",
-    name: "Example main",
-    file: "./public/assets/scan.glb",
+    id: "asahigaoka",
+    name: "Asahigaoka GLB",
+    file: "./public/assets/scans/Asahigaoka.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -64,16 +80,36 @@ const SCANS = [
 ];
 ```
 
+For multiple scans, add more objects to `PROJECT_SCANS`.
+
 A-Frame positions and scales are in meters. Rotation values are degrees in `X Y Z` order.
 
 Each scan needs a unique `id`. The page can open directly to a scan using a URL like:
 
 ```text
-https://your-site.example/?scan=main
+https://your-site.example/?scan=asahigaoka
 https://your-site.example/?scan=machine
 ```
 
 This is useful for QR codes.
+
+## Sample Models
+
+The repository still contains a few small example GLB files for debugging, but the normal dropdown only shows project scans.
+
+Open sample models directly:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/?scan=duck
+https://tzf230201.github.io/pbl_x_yuushin/?scan=box
+https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
+```
+
+Show samples in the dropdown:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/?samples=1
+```
 
 ## Where to Put the PLY Splat File
 
@@ -89,24 +125,10 @@ Open the splat viewer:
 https://your-site.example/splat.html?splat=main
 ```
 
-For this repository on GitHub Pages, the URL will be:
+For this repository on GitHub Pages, the main splat URL is:
 
 ```text
 https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
-```
-
-The current Asahigaoka files are:
-
-```text
-public/assets/scans/Asahigaoka.glb
-public/assets/splats/Asahigaoka.ply
-```
-
-Direct Asahigaoka links:
-
-```text
-https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
 ```
 
 The splat viewer uses WebGL mode because WebXR / VR needs WebGL in the bundled SuperSplat Viewer.
@@ -195,6 +217,29 @@ Do not open `index.html` directly from the file system. Browsers usually block G
 - Use the right thumbstick left/right to turn.
 - Select the VR button in the bottom-right corner to enter VR mode.
 
+## Optimization for Quest
+
+Meta Quest Browser can struggle with very large scans. Good targets:
+
+- GLB: keep under 50-100 MB when possible.
+- Textures: use 1K or 2K textures unless close inspection is required.
+- Meshes: decimate or simplify dense scans before upload.
+- PLY splats: if the file is too large, export SPZ and convert to SOG with `npm run convert:spz:sog`.
+- GitHub: normal Git pushes are blocked for files over 100 MB.
+
+## Test Checklist
+
+Current status:
+
+```text
+Desktop Chrome: OK
+GitHub Pages deployment: OK
+Asahigaoka GLB URL: OK
+Asahigaoka PLY URL: OK
+Meta Quest Browser: not tested in this repo yet
+Mobile Safari: not tested in this repo yet
+```
+
 ## Open on Meta Quest / Oculus Browser
 
 1. Deploy the project online using HTTPS.
@@ -253,10 +298,6 @@ Direct scan links will look like:
 
 ```text
 https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
-https://tzf230201.github.io/pbl_x_yuushin/?scan=main
-https://tzf230201.github.io/pbl_x_yuushin/?scan=duck
-https://tzf230201.github.io/pbl_x_yuushin/?scan=box
-https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
 ```
 
 PLY splat link:
@@ -293,5 +334,19 @@ https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
 - `viewer.js` - scan list, model path and transform settings, URL scan selection, plus loading/error handling.
 - `splat.html` - redirects PLY splats into the bundled SuperSplat Viewer.
 - `splat-viewer/` - static SuperSplat Viewer files for Gaussian Splat PLY files.
+- `docs/images/` - screenshots used by this README.
 - `styles.css` - loading screen and scan selector styles.
 - `package.json` - optional local static server scripts.
+
+## Credits
+
+- [A-Frame](https://aframe.io/) for the WebXR GLB viewer.
+- [SuperSplat Viewer](https://github.com/playcanvas/supersplat-viewer) for Gaussian Splat viewing.
+- [Splat Transform](https://github.com/playcanvas/splat-transform) for optional SPZ/PLY/SOG conversion.
+- [Khronos glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models) for small debugging GLB examples.
+
+## License
+
+Project code is released under the MIT License. See `LICENSE`.
+
+Third-party libraries and sample assets keep their original licenses.

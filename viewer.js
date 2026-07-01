@@ -1,6 +1,9 @@
-// Add more scans here.
+const urlParams = new URLSearchParams(window.location.search);
+const requestedScanId = urlParams.get("scan");
+
+// Add project scans here.
 // A-Frame uses meters. Rotation is in degrees: X Y Z.
-const SCANS = [
+const PROJECT_SCANS = [
   {
     id: "asahigaoka",
     name: "Asahigaoka GLB",
@@ -11,6 +14,9 @@ const SCANS = [
     viewDistance: 1.7,
     cameraHeight: 0.85,
   },
+];
+
+const SAMPLE_SCANS = [
   {
     id: "main",
     name: "Example main",
@@ -44,6 +50,10 @@ const SCANS = [
     scale: "1 1 1",
   },
 ];
+
+const showSampleModels =
+  urlParams.has("samples") || SAMPLE_SCANS.some((scan) => scan.id === requestedScanId);
+const SCANS = showSampleModels ? [...PROJECT_SCANS, ...SAMPLE_SCANS] : PROJECT_SCANS;
 
 const loadingScreen = document.querySelector("#loading-screen");
 const loadingMessage = document.querySelector("#loading-message");
