@@ -120,7 +120,17 @@ body.is-fullscreen .topbar { padding: 8px 14px; }
 
 /* ---- Viewer ---- */
 #viewer { position: relative; flex: 1; overflow: hidden; }
-#scene { display: block; width: 100%; height: 100%; }
+#scene { display: block; width: 100%; height: 100%; position: relative; z-index: 1; }
+
+/* Rear-camera feed shown behind the 3D canvas during fallback AR */
+.cam-feed {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  display: none;
+}
+body.in-fallback-ar .cam-feed { display: block; }
 
 /* ---- Drop hint ---- */
 .drop-hint {

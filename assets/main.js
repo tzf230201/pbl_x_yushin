@@ -12,7 +12,7 @@ const loader    = document.getElementById('loader');
 const modelName = document.getElementById('modelName');
 
 // ---- Renderer ----
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -226,11 +226,27 @@ let hitTestRequested = false;
 let modelPlaced = false;
 const savedModelState = { pos: new THREE.Vector3(), scale: new THREE.Vector3(), had: false };
 
-// Show the AR button only if the device actually supports immersive AR
+// ---- AR support detection ----
+const camFeed    = document.getElementById('camFeed');
+const arHintText = document.getElementById('arHintText');
+
+let webxrARSupported = false;
+// Camera + motion-sensor fallback: works on most phones (incl. iPhone) over HTTPS
+const canFallbackAR =
+  window.isSecureContext &&
+  !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+  window.matchMedia('(pointer: coarse)').matches;
+
+function refreshARButton() {
+  arBtn.hidden = !(webxrARSupported || canFallbackAR);
+}
+
 if (navigator.xr && navigator.xr.isSessionSupported) {
-  navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-    arBtn.hidden = !supported;
-  }).catch(() => { arBtn.hidden = true; });
+  navigator.xr.isSessionSupported('immersive-ar')
+    .then((supported) => { webxrARSupported = supported; refreshARButton(); })
+    .catch(() => { refreshARButton(); });
+} else {
+  refreshARButton();
 }
 
 async function startAR() {
@@ -321,10 +337,156 @@ function updateHitTest(frame) {
   }
 }
 
-arBtn.addEventListener('click', startAR);
+// =====================================================================
+//  Fallback AR: rear camera as background + device orientation (IMU)
+//  Used when the device has no WebXR immersive-ar (e.g. iPhone/Safari).
+// =====================================================================
+let fallbackActive = false;
+let camStream = null;
+let deviceOrientation = null;
+let screenOrient = 0;
+
+// --- device-orientation → quaternion helper (standard three.js math) ---
+const _zee = new THREE.Vector3(0, 0, 1);
+const _euler = new THREE.Euler();
+const _q0 = new THREE.Quaternion();
+const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 around X
+
+function setCameraFromSensors(quaternion, alpha, beta, gamma, orient) {
+  _euler.set(beta, alpha, -gamma, 'YXZ');           // device euler
+  quaternion.setFromEuler(_euler);
+  quaternion.multiply(_q1);                          // camera looks out the back
+  quaternion.multiply(_q0.setFromAxisAngle(_zee, -orient)); // adjust for screen rotation
+}
+
+function onDeviceOrientation(e) {
+  deviceOrientation = e;
+}
+function onScreenOrientation() {
+  screenOrient = THREE.MathUtils.degToRad(
+    (screen.orientation && screen.orientation.angle) || window.orientation || 0
+  );
+}
+
+// Place the model a comfortable distance in front of the viewer
+function placeModelInFront() {
+  const box = new THREE.Box3().setFromObject(currentModel);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const dist = (maxDim / (2 * Math.tan((Math.PI * camera.fov) / 360))) * 1.6;
+  currentModel.position.set(0, 0, -dist);
+  currentModel.rotation.set(0, 0, 0);
+}
+
+async function startFallbackAR() {
+  try {
+    // 1) Ask for the rear camera
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    });
+    camFeed.srcObject = camStream;
+    await camFeed.play().catch(() => {});
+
+    // 2) Ask for motion-sensor permission (required on iOS 13+)
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res !== 'granted') {
+        alert('Motion sensor permission denied — you can still see the model, but it will not follow your phone.');
+      }
+    }
+    window.addEventListener('deviceorientation', onDeviceOrientation, true);
+    onScreenOrientation();
+    window.addEventListener('orientationchange', onScreenOrientation);
+
+    // 3) Switch scene into AR mode
+    fallbackActive = true;
+    document.body.classList.add('in-ar', 'in-fallback-ar');
+    arHintText.textContent = 'Move your phone around to view the model';
+    arHint.classList.remove('hidden');
+    scene.background = null;
+    renderer.setClearAlpha(0);
+    grid.visible = false;
+    controls.enabled = false;
+
+    savedModelState.had = true;
+    savedModelState.pos.copy(currentModel.position);
+    savedModelState.scale.copy(currentModel.scale);
+    savedModelState.rot = currentModel.rotation.clone();
+    placeModelInFront();
+  } catch (err) {
+    console.error(err);
+    alert('Could not start camera AR. Please allow camera access and try again.');
+    stopFallbackAR();
+  }
+}
+
+function stopFallbackAR() {
+  fallbackActive = false;
+  document.body.classList.remove('in-ar', 'in-fallback-ar');
+  arHint.classList.add('hidden');
+
+  window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+  window.removeEventListener('orientationchange', onScreenOrientation);
+  deviceOrientation = null;
+
+  if (camStream) {
+    camStream.getTracks().forEach((t) => t.stop());
+    camStream = null;
+  }
+  camFeed.srcObject = null;
+
+  scene.background = new THREE.Color(0x0e1116);
+  renderer.setClearAlpha(1);
+  grid.visible = true;
+  controls.enabled = true;
+  camera.quaternion.set(0, 0, 0, 1);
+
+  if (currentModel && savedModelState.had) {
+    currentModel.position.copy(savedModelState.pos);
+    currentModel.scale.copy(savedModelState.scale);
+    if (savedModelState.rot) currentModel.rotation.copy(savedModelState.rot);
+    frameModel(currentModel);
+  }
+}
+
+// Pinch to scale the model while in fallback AR
+let pinchStart = 0;
+let pinchBaseScale = 1;
+viewer.addEventListener('touchstart', (e) => {
+  if (fallbackActive && e.touches.length === 2 && currentModel) {
+    pinchStart = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    pinchBaseScale = currentModel.scale.x;
+  }
+}, { passive: true });
+viewer.addEventListener('touchmove', (e) => {
+  if (fallbackActive && e.touches.length === 2 && currentModel && pinchStart) {
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const s = THREE.MathUtils.clamp(pinchBaseScale * (d / pinchStart), 0.05, 50);
+    currentModel.scale.setScalar(s);
+  }
+}, { passive: true });
+
+// --- AR button routes to the best available mode ---
+arBtn.addEventListener('click', () => {
+  if (!currentModel) {
+    alert('Load a model first, then tap AR.');
+    return;
+  }
+  if (webxrARSupported) startAR();
+  else startFallbackAR();
+});
 arExit.addEventListener('click', () => {
   const session = renderer.xr.getSession();
   if (session) session.end();
+  if (fallbackActive) stopFallbackAR();
 });
 
 // ---- Resize ----
@@ -339,9 +501,21 @@ window.addEventListener('resize', resize);
 resize();
 
 // ---- Render loop ----
-// setAnimationLoop drives both the normal viewer and the WebXR (AR) session.
+// setAnimationLoop drives the normal viewer, the WebXR session, and fallback AR.
 renderer.setAnimationLoop((timestamp, frame) => {
-  if (frame) updateHitTest(frame);   // frame is only present during an XR session
-  if (!renderer.xr.isPresenting) controls.update();
+  if (frame) updateHitTest(frame);   // frame is only present during a WebXR session
+
+  if (fallbackActive) {
+    // Drive the camera from the phone's motion sensors (IMU)
+    if (deviceOrientation) {
+      const alpha = THREE.MathUtils.degToRad(deviceOrientation.alpha || 0);
+      const beta  = THREE.MathUtils.degToRad(deviceOrientation.beta  || 0);
+      const gamma = THREE.MathUtils.degToRad(deviceOrientation.gamma || 0);
+      setCameraFromSensors(camera.quaternion, alpha, beta, gamma, screenOrient);
+    }
+  } else if (!renderer.xr.isPresenting) {
+    controls.update();
+  }
+
   renderer.render(scene, camera);
 });

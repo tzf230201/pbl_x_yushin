@@ -42,6 +42,7 @@
 
     <!-- Viewer canvas -->
     <main id="viewer">
+      <video id="camFeed" class="cam-feed" playsinline muted autoplay></video>
       <canvas id="scene"></canvas>
 
       <!-- Loading / drop hint -->
@@ -72,7 +73,7 @@
 
       <!-- AR instruction overlay -->
       <div id="arHint" class="ar-hint hidden">
-        <span>Point at the floor and tap to place the model</span>
+        <span id="arHintText">Point at the floor and tap to place the model</span>
         <button id="arExit" class="ar-exit">Exit AR</button>
       </div>
     </main>
