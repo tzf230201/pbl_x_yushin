@@ -110,7 +110,13 @@ This project has no backend and no build step. Deploy the whole folder as a stat
 
 ### GitHub Pages
 
-This project is a plain static site, so the easiest GitHub Pages setup is `Deploy from a branch`.
+This repository includes a GitHub Actions workflow at:
+
+```text
+.github/workflows/pages.yml
+```
+
+To publish:
 
 1. Commit and push the files to the `main` branch.
 2. Open the repository on GitHub:
@@ -120,10 +126,9 @@ https://github.com/tzf230201/pbl_x_yuushin
 ```
 
 3. Go to Settings > Pages.
-4. Under Build and deployment, set Source to `Deploy from a branch`.
-5. Set Branch to `main`.
-6. Set Folder to `/ (root)`.
-7. Click Save.
+4. Under Build and deployment, set Source to `GitHub Actions`.
+5. Open the Actions tab.
+6. Wait for `Deploy static site to GitHub Pages` to finish.
 
 The site should be available at:
 
