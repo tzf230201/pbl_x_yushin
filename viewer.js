@@ -53,9 +53,9 @@ const cameraRig = document.querySelector("#rig");
 const camera = document.querySelector("#camera");
 const navButtons = document.querySelectorAll("[data-nav-action]");
 
-const MOVEMENT_SPEED = 1.5;
-const VERTICAL_SPEED = 1.1;
-const TURN_SPEED = 1.8;
+const MOVEMENT_SPEED = 0.45;
+const VERTICAL_SPEED = 0.4;
+const TURN_SPEED = 0.75;
 const GAMEPAD_DEADZONE = 0.18;
 
 const pressedKeys = new Set();
@@ -296,8 +296,9 @@ function turnCamera(amount, deltaSeconds) {
 
 function moveCameraRig(input, deltaSeconds) {
   const forward = new AFRAME.THREE.Vector3();
+  const cameraQuaternion = new AFRAME.THREE.Quaternion();
+
   camera.object3D.getWorldDirection(forward);
-  forward.y = 0;
 
   if (forward.lengthSq() < 0.0001) {
     forward.set(0, 0, -1);
@@ -305,7 +306,17 @@ function moveCameraRig(input, deltaSeconds) {
     forward.normalize();
   }
 
-  const right = new AFRAME.THREE.Vector3(-forward.z, 0, forward.x);
+  camera.object3D.getWorldQuaternion(cameraQuaternion);
+
+  const right = new AFRAME.THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuaternion);
+  right.y = 0;
+
+  if (right.lengthSq() < 0.0001) {
+    right.set(1, 0, 0);
+  } else {
+    right.normalize();
+  }
+
   const movement = new AFRAME.THREE.Vector3();
 
   movement.addScaledVector(forward, input.forward * MOVEMENT_SPEED * deltaSeconds);

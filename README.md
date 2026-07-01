@@ -178,7 +178,8 @@ Do not open `index.html` directly from the file system. Browsers usually block G
 ## Desktop Controls
 
 - Drag the mouse to look around.
-- Use `W`, `A`, `S`, and `D` or arrow keys to move.
+- Use `W`, `A`, `S`, and `D` or arrow keys to fly.
+- `W` moves toward where the camera is looking.
 - Use `Space` or `E` to move up.
 - Use `Shift` or `Q` to move down.
 - Press `R` to reset the view.
@@ -188,7 +189,8 @@ Do not open `index.html` directly from the file system. Browsers usually block G
 ## Meta Quest / Oculus Controls
 
 - Move your head to look around.
-- Use the left thumbstick to move forward, backward, left, and right.
+- Use the left thumbstick to fly forward, backward, left, and right.
+- Forward follows where the headset is looking.
 - Use the right thumbstick up/down to move vertically.
 - Use the right thumbstick left/right to turn.
 - Select the VR button in the bottom-right corner to enter VR mode.
