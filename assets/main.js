@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 // ---- DOM ----
 const canvas    = document.getElementById('scene');
@@ -25,7 +26,10 @@ scene.background = new THREE.Color(0x0e1116);
 
 // Environment lighting (soft, studio-like) so models look good without manual lights
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+let currentEnvRT = pmrem.fromScene(new RoomEnvironment(), 0.04); // PMREM render target (lighting)
+let currentBgTexture = null;                                     // equirect texture used as backdrop
+let activeBackground = new THREE.Color(0x0e1116);               // background to restore after AR
+scene.environment = currentEnvRT.texture;
 
 // A subtle grid floor for spatial reference
 const grid = new THREE.GridHelper(20, 20, 0x2a3340, 0x1b2029);
@@ -288,7 +292,7 @@ function onARStart() {
 function onAREnd() {
   document.body.classList.remove('in-ar');
   arHint.classList.add('hidden');
-  scene.background = new THREE.Color(0x0e1116);
+  scene.background = activeBackground;
   grid.visible = true;
   reticle.visible = false;
   hitTestSource = null;
@@ -451,7 +455,7 @@ function stopFallbackAR() {
   }
   camFeed.srcObject = null;
 
-  scene.background = new THREE.Color(0x0e1116);
+  scene.background = activeBackground;
   renderer.setClearAlpha(1);
   grid.visible = true;
   controls.enabled = true;
@@ -513,6 +517,107 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// =====================================================================
+//  Environment / lighting presets (HDRI) + custom HDR upload
+// =====================================================================
+const envSelect = document.getElementById('envSelect');
+const hdrInput  = document.getElementById('hdrInput');
+const rgbeLoader = new RGBELoader();
+
+// Poly Haven HDRIs hosted via the pmndrs/drei-assets CDN (same set drei uses)
+const HDRI_BASE = 'https://raw.githubusercontent.com/pmndrs/drei-assets/456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/';
+const HDRI_FILES = {
+  sunset:    'venice_sunset_1k.hdr',
+  dawn:      'kiara_1_dawn_1k.hdr',
+  night:     'dikhololo_night_1k.hdr',
+  warehouse: 'empty_warehouse_01_1k.hdr',
+  forest:    'forest_slope_1k.hdr',
+  apartment: 'lebombo_1k.hdr',
+  park:      'rooitou_park_1k.hdr',
+  city:      'potsdamer_platz_1k.hdr',
+  lobby:     'st_fagans_interior_1k.hdr',
+};
+
+function inAR() {
+  return renderer.xr.isPresenting || fallbackActive;
+}
+
+function disposeEnv() {
+  if (currentEnvRT) { currentEnvRT.dispose(); currentEnvRT = null; }
+  if (currentBgTexture) { currentBgTexture.dispose(); currentBgTexture = null; }
+}
+
+// Built-in studio lighting (instant, no download), clean dark background
+function setStudioEnv() {
+  const rt = pmrem.fromScene(new RoomEnvironment(), 0.04);
+  disposeEnv();
+  currentEnvRT = rt;
+  scene.environment = rt.texture;
+  activeBackground = new THREE.Color(0x0e1116);
+  if (!inAR()) scene.background = activeBackground;
+  envSelect.disabled = false;
+}
+
+// Load an equirectangular .hdr and use it for both lighting and backdrop
+function setHDREnv(url, { revoke = false } = {}) {
+  envSelect.disabled = true;
+  loader.classList.remove('hidden');
+  rgbeLoader.load(
+    url,
+    (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      const rt = pmrem.fromEquirectangular(tex);
+      disposeEnv();
+      currentEnvRT = rt;
+      currentBgTexture = tex;
+      scene.environment = rt.texture;
+      activeBackground = tex;              // show the HDRI as the background
+      if (!inAR()) scene.background = activeBackground;
+      loader.classList.add('hidden');
+      envSelect.disabled = false;
+      if (revoke) URL.revokeObjectURL(url);
+    },
+    undefined,
+    (err) => {
+      console.error('HDR load failed:', err);
+      loader.classList.add('hidden');
+      envSelect.disabled = false;
+      alert('Failed to load the HDR environment (check your connection or the file).');
+    }
+  );
+}
+
+let lastEnvValue = 'studio';
+envSelect.addEventListener('change', () => {
+  const val = envSelect.value;
+  if (val === '__upload') {
+    envSelect.value = lastEnvValue; // revert; real choice happens after file picked
+    hdrInput.click();
+    return;
+  }
+  lastEnvValue = val;
+  if (val === 'studio') setStudioEnv();
+  else if (HDRI_FILES[val]) setHDREnv(HDRI_BASE + HDRI_FILES[val]);
+});
+
+hdrInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  setHDREnv(url, { revoke: true });
+  // Reflect the custom choice in the dropdown
+  let opt = envSelect.querySelector('option[value="__custom"]');
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = '__custom';
+    envSelect.insertBefore(opt, envSelect.querySelector('option[value="__upload"]'));
+  }
+  opt.textContent = 'Custom: ' + file.name;
+  envSelect.value = '__custom';
+  lastEnvValue = '__custom';
+  hdrInput.value = ''; // allow re-selecting the same file later
+});
 
 // ---- Render loop ----
 // setAnimationLoop drives the normal viewer, the WebXR session, and fallback AR.
