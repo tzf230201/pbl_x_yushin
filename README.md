@@ -12,7 +12,7 @@ Export your main Scaniverse model as a GLB file and place it here:
 public/assets/scan.glb
 ```
 
-The viewer already includes this as `Main scan`.
+The viewer already includes this as `Example main`.
 
 For multiple scans, put additional GLB files in:
 
@@ -34,8 +34,8 @@ If a model appears too large, too small, rotated, or away from the camera, edit 
 const SCANS = [
   {
     id: "main",
-    name: "Main scan",
-    file: "public/assets/scan.glb",
+    name: "Example main",
+    file: "./public/assets/scan.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",

@@ -3,8 +3,8 @@
 const SCANS = [
   {
     id: "main",
-    name: "Main scan",
-    file: "public/assets/scan.glb",
+    name: "Example main",
+    file: "./public/assets/scan.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "0.01 0.01 0.01",
@@ -12,7 +12,7 @@ const SCANS = [
   {
     id: "duck",
     name: "Example duck",
-    file: "public/assets/scans/duck.glb",
+    file: "./public/assets/scans/duck.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "0.01 0.01 0.01",
@@ -20,7 +20,7 @@ const SCANS = [
   {
     id: "box",
     name: "Example box",
-    file: "public/assets/scans/box.glb",
+    file: "./public/assets/scans/box.glb",
     position: "0 0.5 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -28,7 +28,7 @@ const SCANS = [
   {
     id: "cesium-man",
     name: "Example Cesium man",
-    file: "public/assets/scans/cesium-man.glb",
+    file: "./public/assets/scans/cesium-man.glb",
     position: "0 0 0",
     rotation: "0 180 0",
     scale: "1 1 1",
@@ -50,8 +50,14 @@ function hideLoadingScreen() {
 }
 
 function showLoadingError(scan) {
+  const modelUrl = resolveModelUrl(scan.file);
+
   loadingMessage.textContent =
-    `Could not load ${scan.file}. Check that the GLB file exists and the page is served from a local or online web server.`;
+    `Could not load ${modelUrl}. Check that the GLB file exists and the page is served from a local or online web server.`;
+}
+
+function resolveModelUrl(file) {
+  return new URL(file, document.baseURI).href;
 }
 
 function getScanFromUrl() {
@@ -82,7 +88,7 @@ function loadScan(scan) {
   scanModel.removeAttribute("gltf-model");
 
   window.requestAnimationFrame(() => {
-    scanModel.setAttribute("gltf-model", `url(${scan.file})`);
+    scanModel.setAttribute("gltf-model", `url(${resolveModelUrl(scan.file)})`);
   });
 }
 
