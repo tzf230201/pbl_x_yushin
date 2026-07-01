@@ -379,47 +379,61 @@ function placeModelInFront() {
 }
 
 async function startFallbackAR() {
+  // 1) Motion-sensor permission FIRST — on iOS this must run inside the
+  //    button's user gesture, before any other await, or it is rejected.
   try {
-    // 1) Ask for the rear camera
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false,
-    });
-    camFeed.srcObject = camStream;
-    await camFeed.play().catch(() => {});
-
-    // 2) Ask for motion-sensor permission (required on iOS 13+)
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
       const res = await DeviceOrientationEvent.requestPermission();
       if (res !== 'granted') {
-        alert('Motion sensor permission denied — you can still see the model, but it will not follow your phone.');
+        alert('Motion-sensor permission was denied. You can still see the model, but it will not follow your phone. Enable Motion & Orientation Access in Safari settings to fix this.');
       }
     }
-    window.addEventListener('deviceorientation', onDeviceOrientation, true);
-    onScreenOrientation();
-    window.addEventListener('orientationchange', onScreenOrientation);
-
-    // 3) Switch scene into AR mode
-    fallbackActive = true;
-    document.body.classList.add('in-ar', 'in-fallback-ar');
-    arHintText.textContent = 'Move your phone around to view the model';
-    arHint.classList.remove('hidden');
-    scene.background = null;
-    renderer.setClearAlpha(0);
-    grid.visible = false;
-    controls.enabled = false;
-
-    savedModelState.had = true;
-    savedModelState.pos.copy(currentModel.position);
-    savedModelState.scale.copy(currentModel.scale);
-    savedModelState.rot = currentModel.rotation.clone();
-    placeModelInFront();
-  } catch (err) {
-    console.error(err);
-    alert('Could not start camera AR. Please allow camera access and try again.');
-    stopFallbackAR();
+  } catch (e) {
+    // Not fatal — continue with the camera even if motion permission fails.
+    console.warn('Motion-sensor permission error:', e);
   }
+
+  // 2) Rear camera
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    });
+  } catch (err) {
+    console.error('getUserMedia failed:', err);
+    alert(
+      'Could not access the camera (' + (err && err.name ? err.name : 'unknown error') + ').\n\n' +
+      'Make sure camera permission is allowed for this site, that no other app is using the camera, ' +
+      'and that the page is opened over HTTPS.'
+    );
+    stopFallbackAR();
+    return;
+  }
+
+  camFeed.srcObject = camStream;
+  try { await camFeed.play(); } catch (e) { /* iOS may defer play; ignore */ }
+
+  // 3) Start listening to the motion sensors
+  window.addEventListener('deviceorientation', onDeviceOrientation, true);
+  onScreenOrientation();
+  window.addEventListener('orientationchange', onScreenOrientation);
+
+  // 4) Switch scene into AR mode
+  fallbackActive = true;
+  document.body.classList.add('in-ar', 'in-fallback-ar');
+  arHintText.textContent = 'Move your phone around to view the model';
+  arHint.classList.remove('hidden');
+  scene.background = null;
+  renderer.setClearAlpha(0);
+  grid.visible = false;
+  controls.enabled = false;
+
+  savedModelState.had = true;
+  savedModelState.pos.copy(currentModel.position);
+  savedModelState.scale.copy(currentModel.scale);
+  savedModelState.rot = currentModel.rotation.clone();
+  placeModelInFront();
 }
 
 function stopFallbackAR() {
