@@ -1,8 +1,29 @@
 # Scaniverse WebXR Viewer
 
-A small static WebXR/VR viewer for a 3D scan exported from Scaniverse on iPhone.
+A small static WebXR/VR viewer for 3D scans exported from Scaniverse on iPhone.
 
-It uses [A-Frame](https://aframe.io/) so the scene can run in normal desktop browsers and in Meta Quest / Oculus Browser.
+It supports two workflows:
+
+- Mesh / GLB scans through the main A-Frame viewer.
+- Gaussian Splat / PLY scans through the included SuperSplat Viewer.
+
+## Which Scaniverse Export to Use
+
+If Scaniverse gives you `GLB`, use the main viewer:
+
+```text
+index.html
+```
+
+If Scaniverse only gives you `PLY` or `SPZ`, that scan is a Gaussian Splat. Use the splat viewer:
+
+```text
+splat.html
+```
+
+For the easiest GitHub Pages workflow, export `PLY` from Scaniverse.
+
+GitHub blocks normal Git pushes for files over 100 MB. If your `PLY` is too large, export `SPZ` from Scaniverse and convert it to `SOG` locally before pushing.
 
 ## Where to Put the GLB File
 
@@ -54,6 +75,64 @@ https://your-site.example/?scan=machine
 
 This is useful for QR codes.
 
+## Where to Put the PLY Splat File
+
+Export your Scaniverse Gaussian Splat as `PLY` and place it here:
+
+```text
+public/assets/splats/main.ply
+```
+
+Open the splat viewer:
+
+```text
+https://your-site.example/splat.html?splat=main
+```
+
+For this repository on GitHub Pages, the URL will be:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
+```
+
+The splat viewer uses WebGL mode because WebXR / VR needs WebGL in the bundled SuperSplat Viewer.
+
+## If You Only Have SPZ
+
+You can convert `SPZ` to `PLY` locally.
+
+Put the file here:
+
+```text
+public/assets/splats/main.spz
+```
+
+Run:
+
+```bash
+npm run convert:spz
+```
+
+This creates:
+
+```text
+public/assets/splats/main.ply
+```
+
+Then commit and push the new `main.ply` file.
+
+If the generated `main.ply` is too large for GitHub, convert to the web-friendly `SOG` format instead:
+
+```bash
+npm run convert:spz:sog
+```
+
+Then open:
+
+```text
+https://your-site.example/splat.html?splat=main-sog
+```
+
 ## Run Locally
 
 Install dependencies:
@@ -102,6 +181,12 @@ To open a specific scan directly, use a link with the scan ID:
 https://your-site.example/?scan=main
 ```
 
+For a PLY splat, open:
+
+```text
+https://your-site.example/splat.html?splat=main
+```
+
 WebXR requires a secure context. Online deployments must use `https://`. Local `http://localhost` works for desktop testing, but a Quest headset normally needs an HTTPS public URL or a properly configured local network setup.
 
 ## Deploy Online
@@ -145,6 +230,12 @@ https://tzf230201.github.io/pbl_x_yuushin/?scan=box
 https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
 ```
 
+PLY splat link:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
+```
+
 ### Netlify
 
 1. Create a new Netlify site.
@@ -170,5 +261,7 @@ https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
 
 - `index.html` - A-Frame scene, camera, lights, sky, ground, VR button, and GLB entity.
 - `viewer.js` - scan list, model path and transform settings, URL scan selection, plus loading/error handling.
+- `splat.html` - redirects PLY splats into the bundled SuperSplat Viewer.
+- `splat-viewer/` - static SuperSplat Viewer files for Gaussian Splat PLY files.
 - `styles.css` - loading screen and scan selector styles.
 - `package.json` - optional local static server scripts.

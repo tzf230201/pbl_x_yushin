@@ -2,11 +2,13 @@
   "name": "scaniverse-webxr-viewer",
   "version": "1.0.0",
   "private": true,
-  "description": "A lightweight static WebXR viewer for a Scaniverse GLB model.",
+  "description": "A lightweight static WebXR viewer for Scaniverse GLB and Gaussian Splat files.",
   "scripts": {
     "start": "http-server . -p 5173 -c-1",
     "dev": "http-server . -p 5173 -c-1",
-    "start:lan": "http-server . -a 0.0.0.0 -p 5173 -c-1"
+    "start:lan": "http-server . -a 0.0.0.0 -p 5173 -c-1",
+    "convert:spz": "npx @playcanvas/splat-transform -w public/assets/splats/main.spz public/assets/splats/main.ply",
+    "convert:spz:sog": "npx @playcanvas/splat-transform -w public/assets/splats/main.spz public/assets/splats/main.sog"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
