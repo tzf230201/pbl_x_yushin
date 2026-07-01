@@ -45,6 +45,57 @@ body {
   font: inherit;
 }
 
+.nav-controls {
+  position: fixed;
+  bottom: 18px;
+  left: 18px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 8px;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(17, 24, 32, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.nav-controls-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 8px;
+}
+
+.nav-controls-row-vertical {
+  grid-template-columns: repeat(2, 44px);
+  justify-content: center;
+}
+
+.nav-controls button {
+  width: 44px;
+  height: 44px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  font: 700 1.05rem/1 system-ui, sans-serif;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.nav-controls > button {
+  grid-column: 2;
+}
+
+.nav-controls button:hover,
+.nav-controls button:focus-visible,
+.nav-controls button.is-active {
+  background: rgba(255, 255, 255, 0.24);
+  outline: none;
+}
+
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -116,5 +167,24 @@ a-scene {
   .scan-picker select {
     width: 100%;
     max-width: none;
+  }
+
+  .nav-controls {
+    bottom: 12px;
+    left: 12px;
+    grid-template-columns: repeat(3, 40px);
+  }
+
+  .nav-controls-row {
+    grid-template-columns: repeat(3, 40px);
+  }
+
+  .nav-controls-row-vertical {
+    grid-template-columns: repeat(2, 40px);
+  }
+
+  .nav-controls button {
+    width: 40px;
+    height: 40px;
   }
 }

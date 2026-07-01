@@ -51,6 +51,17 @@ const scanSelect = document.querySelector("#scan-select");
 const scanModel = document.querySelector("#scan-model");
 const cameraRig = document.querySelector("#rig");
 const camera = document.querySelector("#camera");
+const navButtons = document.querySelectorAll("[data-nav-action]");
+
+const MOVEMENT_SPEED = 1.5;
+const VERTICAL_SPEED = 1.1;
+const TURN_SPEED = 1.8;
+const GAMEPAD_DEADZONE = 0.18;
+
+const pressedKeys = new Set();
+const activeNavActions = new Set();
+let currentScan = SCANS[0];
+let lastFrameTime = 0;
 
 function showLoadingScreen(scan) {
   loadingScreen.classList.remove("is-hidden");
@@ -133,6 +144,7 @@ function frameCameraToModel(scan) {
 }
 
 function loadScan(scan) {
+  currentScan = scan;
   showLoadingScreen(scan);
   updateUrl(scan);
   applyScanTransform(scan);
@@ -158,6 +170,7 @@ fillScanSelect();
 
 const firstScan = getScanFromUrl();
 scanSelect.value = firstScan.id;
+currentScan = firstScan;
 
 scanModel.addEventListener("model-loaded", () => {
   const scan = SCANS.find((item) => item.id === scanSelect.value) || SCANS[0];
@@ -180,8 +193,192 @@ scanSelect.addEventListener("change", () => {
 
 loadScan(firstScan);
 
+function getKeyAction(event) {
+  const key = event.key.toLowerCase();
+
+  if (key === "w" || event.key === "ArrowUp") return "forward";
+  if (key === "s" || event.key === "ArrowDown") return "backward";
+  if (key === "a" || event.key === "ArrowLeft") return "left";
+  if (key === "d" || event.key === "ArrowRight") return "right";
+  if (key === "e" || key === " " || event.key === "PageUp") return "up";
+  if (key === "q" || key === "shift" || event.key === "PageDown") return "down";
+  if (key === "r") return "reset";
+
+  return "";
+}
+
+function shouldIgnoreKeyboardEvent(event) {
+  const tagName = event.target?.tagName?.toLowerCase();
+  return tagName === "input" || tagName === "select" || tagName === "textarea";
+}
+
+function addNavAction(action) {
+  if (action === "reset") {
+    frameCameraToModel(currentScan);
+    return;
+  }
+
+  activeNavActions.add(action);
+  document
+    .querySelectorAll(`[data-nav-action="${action}"]`)
+    .forEach((button) => button.classList.add("is-active"));
+}
+
+function removeNavAction(action) {
+  activeNavActions.delete(action);
+  document
+    .querySelectorAll(`[data-nav-action="${action}"]`)
+    .forEach((button) => button.classList.remove("is-active"));
+}
+
+function readDigitalInput() {
+  const input = { forward: 0, right: 0, up: 0, turn: 0 };
+  const actions = new Set([...pressedKeys, ...activeNavActions]);
+
+  if (actions.has("forward")) input.forward += 1;
+  if (actions.has("backward")) input.forward -= 1;
+  if (actions.has("right")) input.right += 1;
+  if (actions.has("left")) input.right -= 1;
+  if (actions.has("up")) input.up += 1;
+  if (actions.has("down")) input.up -= 1;
+
+  return input;
+}
+
+function applyDeadzone(value) {
+  return Math.abs(value) > GAMEPAD_DEADZONE ? value : 0;
+}
+
+function readGamepadInput(input) {
+  const gamepads = navigator.getGamepads?.() || [];
+  let activePadIndex = 0;
+
+  gamepads.forEach((gamepad) => {
+    if (!gamepad || !gamepad.connected) return;
+
+    const axes = gamepad.axes || [];
+    const id = gamepad.id.toLowerCase();
+    const x = applyDeadzone(axes.length >= 4 ? axes[2] : axes[0] || 0);
+    const y = applyDeadzone(axes.length >= 4 ? axes[3] : axes[1] || 0);
+    const isRightHand = id.includes("right") || (!id.includes("left") && activePadIndex % 2 === 1);
+
+    if (isRightHand) {
+      input.up += -y;
+      input.turn += x;
+    } else {
+      input.right += x;
+      input.forward += -y;
+    }
+
+    activePadIndex += 1;
+  });
+}
+
+function clampInput(input) {
+  input.forward = Math.max(-1, Math.min(1, input.forward));
+  input.right = Math.max(-1, Math.min(1, input.right));
+  input.up = Math.max(-1, Math.min(1, input.up));
+  input.turn = Math.max(-1, Math.min(1, input.turn));
+}
+
+function turnCamera(amount, deltaSeconds) {
+  if (!amount) return;
+
+  const lookControls = camera.components["look-controls"];
+  const yawDelta = -amount * TURN_SPEED * deltaSeconds;
+
+  if (lookControls) {
+    lookControls.yawObject.rotation.y += yawDelta;
+  } else {
+    camera.object3D.rotation.y += yawDelta;
+  }
+}
+
+function moveCameraRig(input, deltaSeconds) {
+  const forward = new AFRAME.THREE.Vector3();
+  camera.object3D.getWorldDirection(forward);
+  forward.y = 0;
+
+  if (forward.lengthSq() < 0.0001) {
+    forward.set(0, 0, -1);
+  } else {
+    forward.normalize();
+  }
+
+  const right = new AFRAME.THREE.Vector3(-forward.z, 0, forward.x);
+  const movement = new AFRAME.THREE.Vector3();
+
+  movement.addScaledVector(forward, input.forward * MOVEMENT_SPEED * deltaSeconds);
+  movement.addScaledVector(right, input.right * MOVEMENT_SPEED * deltaSeconds);
+  movement.y += input.up * VERTICAL_SPEED * deltaSeconds;
+
+  cameraRig.object3D.position.add(movement);
+}
+
+function navigationLoop(timestamp) {
+  const deltaSeconds = Math.min((timestamp - lastFrameTime) / 1000 || 0, 0.05);
+  lastFrameTime = timestamp;
+
+  if (camera?.object3D && cameraRig?.object3D) {
+    const input = readDigitalInput();
+    readGamepadInput(input);
+    clampInput(input);
+    turnCamera(input.turn, deltaSeconds);
+    moveCameraRig(input, deltaSeconds);
+  }
+
+  window.requestAnimationFrame(navigationLoop);
+}
+
+navButtons.forEach((button) => {
+  const action = button.dataset.navAction;
+
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    addNavAction(action);
+  });
+
+  button.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    button.releasePointerCapture?.(event.pointerId);
+    removeNavAction(action);
+  });
+
+  button.addEventListener("pointercancel", () => removeNavAction(action));
+  button.addEventListener("pointerleave", () => removeNavAction(action));
+});
+
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     document.exitPointerLock?.();
+    return;
+  }
+
+  if (shouldIgnoreKeyboardEvent(event)) {
+    return;
+  }
+
+  const action = getKeyAction(event);
+
+  if (action) {
+    event.preventDefault();
+
+    if (action === "reset") {
+      frameCameraToModel(currentScan);
+      return;
+    }
+
+    pressedKeys.add(action);
   }
 });
+
+window.addEventListener("keyup", (event) => {
+  const action = getKeyAction(event);
+
+  if (action) {
+    pressedKeys.delete(action);
+  }
+});
+
+window.requestAnimationFrame(navigationLoop);
