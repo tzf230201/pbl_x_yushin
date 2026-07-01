@@ -108,7 +108,7 @@ function loadFromURL(url, name) {
     (err) => {
       console.error(err);
       loader.classList.add('hidden');
-      alert('Gagal memuat model. Pastikan file berformat .glb / .gltf yang valid.');
+      alert('Failed to load model. Make sure it is a valid .glb / .gltf file.');
     }
   );
 }
@@ -161,6 +161,34 @@ document.getElementById('zoomOut').addEventListener('click', () => dolly(1.25));
 document.getElementById('reset').addEventListener('click', () => {
   if (currentModel) frameModel(currentModel);
 });
+
+// ---- Fullscreen ----
+const appEl = document.getElementById('app');
+
+function isFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement;
+}
+
+function toggleFullscreen() {
+  if (isFullscreen()) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    const req = appEl.requestFullscreen || appEl.webkitRequestFullscreen;
+    if (req) req.call(appEl);
+  }
+}
+
+function updateFullscreenUI() {
+  const on = !!isFullscreen();
+  document.body.classList.toggle('is-fullscreen', on);
+  const label = document.querySelector('.fs-label');
+  if (label) label.textContent = on ? 'Exit' : 'Fullscreen';
+}
+
+document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
+document.getElementById('fullscreenMobile').addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', () => { updateFullscreenUI(); resize(); });
+document.addEventListener('webkitfullscreenchange', () => { updateFullscreenUI(); resize(); });
 
 // ---- Resize ----
 function resize() {

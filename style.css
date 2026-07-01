@@ -58,6 +58,23 @@ body {
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 
+#fullscreen { display: inline-flex; align-items: center; gap: 6px; }
+.fs-icon { font-size: 16px; line-height: 1; }
+
+/* Big thumb-friendly fullscreen button (mobile only) inside zoom controls */
+.fs-mobile { display: none; }
+
+@media (max-width: 640px) {
+  .title { font-size: 14px; }
+  .btn { padding: 7px 12px; font-size: 13px; }
+  /* On phones use the large corner button; hide the small topbar one */
+  #fullscreen { display: none; }
+  .fs-mobile { display: flex; }
+}
+
+/* Immersive look while in fullscreen */
+body.is-fullscreen .topbar { padding: 8px 14px; }
+
 /* ---- Viewer ---- */
 #viewer { position: relative; flex: 1; overflow: hidden; }
 #scene { display: block; width: 100%; height: 100%; }

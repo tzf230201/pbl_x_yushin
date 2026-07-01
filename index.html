@@ -16,9 +16,13 @@
       </div>
       <div class="topbar-actions">
         <a class="btn btn-ghost" href="./webxr/">WebXR Viewer</a>
+        <button id="fullscreen" class="btn btn-ghost" title="Toggle fullscreen">
+          <span class="fs-icon">⛶</span>
+          <span class="fs-label">Fullscreen</span>
+        </button>
         <label class="btn btn-primary">
           <input type="file" id="fileInput" accept=".glb,.gltf" hidden />
-          Buka Model (.glb)
+          Open Model (.glb)
         </label>
       </div>
     </header>
@@ -31,26 +35,27 @@
       <div id="dropHint" class="drop-hint">
         <div class="drop-inner">
           <div class="drop-icon">⬆</div>
-          <p><strong>Tarik file .glb ke sini</strong></p>
-          <p class="muted">atau klik tombol "Buka Model" di atas</p>
+          <p><strong>Drag &amp; drop a .glb file here</strong></p>
+          <p class="muted">or click the "Open Model" button above</p>
         </div>
       </div>
 
       <div id="loader" class="loader hidden">
         <div class="spinner"></div>
-        <span>Memuat model…</span>
+        <span>Loading model…</span>
       </div>
 
       <!-- Zoom controls -->
       <div class="zoom-controls">
-        <button id="zoomIn"  class="zoom-btn" title="Zoom In">+</button>
-        <button id="zoomOut" class="zoom-btn" title="Zoom Out">−</button>
-        <button id="reset"   class="zoom-btn reset" title="Reset Tampilan">⟳</button>
+        <button id="zoomIn"  class="zoom-btn" title="Zoom in">+</button>
+        <button id="zoomOut" class="zoom-btn" title="Zoom out">−</button>
+        <button id="reset"   class="zoom-btn reset" title="Reset view">⟳</button>
+        <button id="fullscreenMobile" class="zoom-btn fs-mobile" title="Toggle fullscreen">⛶</button>
       </div>
 
       <!-- Info footer -->
       <div class="hud">
-        <span id="modelName">Belum ada model</span>
+        <span id="modelName">No model loaded</span>
       </div>
     </main>
   </div>
