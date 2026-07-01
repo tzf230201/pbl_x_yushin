@@ -7,7 +7,7 @@ const PROJECT_SCANS = [
   {
     id: "asahigaoka",
     name: "Asahigaoka GLB",
-    file: "./public/assets/scans/Asahigaoka.glb",
+    file: "../public/assets/scans/Asahigaoka.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -20,7 +20,7 @@ const SAMPLE_SCANS = [
   {
     id: "main",
     name: "Example main",
-    file: "./public/assets/scan.glb",
+    file: "../public/assets/scan.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -28,7 +28,7 @@ const SAMPLE_SCANS = [
   {
     id: "duck",
     name: "Example duck",
-    file: "./public/assets/scans/duck.glb",
+    file: "../public/assets/scans/duck.glb",
     position: "0 0 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -36,7 +36,7 @@ const SAMPLE_SCANS = [
   {
     id: "box",
     name: "Example box",
-    file: "./public/assets/scans/box.glb",
+    file: "../public/assets/scans/box.glb",
     position: "0 0.5 0",
     rotation: "0 0 0",
     scale: "1 1 1",
@@ -44,7 +44,7 @@ const SAMPLE_SCANS = [
   {
     id: "cesium-man",
     name: "Example Cesium man",
-    file: "./public/assets/scans/cesium-man.glb",
+    file: "../public/assets/scans/cesium-man.glb",
     position: "0 0 0",
     rotation: "0 180 0",
     scale: "1 1 1",
