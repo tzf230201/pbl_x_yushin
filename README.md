@@ -200,6 +200,8 @@ Do not open `index.html` directly from the file system. Browsers usually block G
 ## Desktop Controls
 
 - Drag the mouse to look around.
+- On a touch screen, drag with one finger to look around.
+- Pinch with two fingers to move forward or backward.
 - Use `W`, `A`, `S`, and `D` or arrow keys to fly.
 - `W` moves toward where the camera is looking.
 - Use `Space` or `E` to move up.

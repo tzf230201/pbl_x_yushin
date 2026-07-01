@@ -4,6 +4,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  touch-action: none;
   background: #111820;
   font-family:
     Inter,
@@ -156,6 +157,7 @@ body {
 a-scene {
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 
 @media (max-width: 520px) {

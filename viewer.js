@@ -67,11 +67,13 @@ const MOVEMENT_SPEED = 0.22;
 const VERTICAL_SPEED = 0.4;
 const TURN_SPEED = 0.75;
 const GAMEPAD_DEADZONE = 0.18;
+const PINCH_MOVE_SPEED = 0.006;
 
 const pressedKeys = new Set();
 const activeNavActions = new Set();
 let currentScan = SCANS[0];
 let lastFrameTime = 0;
+let lastPinchDistance = 0;
 
 function showLoadingScreen(scan) {
   loadingScreen.classList.remove("is-hidden");
@@ -304,9 +306,8 @@ function turnCamera(amount, deltaSeconds) {
   }
 }
 
-function moveCameraRig(input, deltaSeconds) {
+function getCameraForward() {
   const forward = new AFRAME.THREE.Vector3();
-  const cameraQuaternion = new AFRAME.THREE.Quaternion();
 
   camera.object3D.getWorldDirection(forward);
 
@@ -315,6 +316,17 @@ function moveCameraRig(input, deltaSeconds) {
   } else {
     forward.normalize();
   }
+
+  return forward;
+}
+
+function moveAlongView(distance) {
+  cameraRig.object3D.position.addScaledVector(getCameraForward(), distance);
+}
+
+function moveCameraRig(input, deltaSeconds) {
+  const forward = getCameraForward();
+  const cameraQuaternion = new AFRAME.THREE.Quaternion();
 
   camera.object3D.getWorldQuaternion(cameraQuaternion);
 
@@ -368,6 +380,47 @@ navButtons.forEach((button) => {
 
   button.addEventListener("pointercancel", () => removeNavAction(action));
   button.addEventListener("pointerleave", () => removeNavAction(action));
+});
+
+function getTouchDistance(touches) {
+  const [firstTouch, secondTouch] = touches;
+  const deltaX = secondTouch.clientX - firstTouch.clientX;
+  const deltaY = secondTouch.clientY - firstTouch.clientY;
+
+  return Math.hypot(deltaX, deltaY);
+}
+
+window.addEventListener(
+  "touchstart",
+  (event) => {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      lastPinchDistance = getTouchDistance(event.touches);
+    }
+  },
+  { passive: false },
+);
+
+window.addEventListener(
+  "touchmove",
+  (event) => {
+    if (event.touches.length !== 2) return;
+
+    event.preventDefault();
+
+    const nextDistance = getTouchDistance(event.touches);
+    const distanceDelta = nextDistance - lastPinchDistance;
+    lastPinchDistance = nextDistance;
+
+    moveAlongView(distanceDelta * PINCH_MOVE_SPEED);
+  },
+  { passive: false },
+);
+
+window.addEventListener("touchend", (event) => {
+  if (event.touches.length < 2) {
+    lastPinchDistance = 0;
+  }
 });
 
 window.addEventListener("keydown", (event) => {
