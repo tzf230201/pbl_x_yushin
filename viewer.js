@@ -53,7 +53,7 @@ const cameraRig = document.querySelector("#rig");
 const camera = document.querySelector("#camera");
 const navButtons = document.querySelectorAll("[data-nav-action]");
 
-const MOVEMENT_SPEED = 0.45;
+const MOVEMENT_SPEED = 0.22;
 const VERTICAL_SPEED = 0.4;
 const TURN_SPEED = 0.75;
 const GAMEPAD_DEADZONE = 0.18;
