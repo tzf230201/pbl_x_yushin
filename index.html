@@ -1,9 +1,18 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>PBL x Yushin — GLB Viewer</title>
+
+  <!-- PWA / true fullscreen when added to home screen -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0e1116" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Yushin Viewer" />
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,7 +25,7 @@
       </div>
       <div class="topbar-actions">
         <a class="btn btn-ghost" href="./webxr/">WebXR Viewer</a>
-        <button id="fullscreen" class="btn btn-ghost" title="Toggle fullscreen">
+        <button id="fullscreen" class="btn btn-fs" title="Toggle fullscreen">
           <span class="fs-icon">⛶</span>
           <span class="fs-label">Fullscreen</span>
         </button>
@@ -50,7 +59,6 @@
         <button id="zoomIn"  class="zoom-btn" title="Zoom in">+</button>
         <button id="zoomOut" class="zoom-btn" title="Zoom out">−</button>
         <button id="reset"   class="zoom-btn reset" title="Reset view">⟳</button>
-        <button id="fullscreenMobile" class="zoom-btn fs-mobile" title="Toggle fullscreen">⛶</button>
       </div>
 
       <!-- Info footer -->

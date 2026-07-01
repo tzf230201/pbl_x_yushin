@@ -169,12 +169,27 @@ function isFullscreen() {
   return document.fullscreenElement || document.webkitFullscreenElement;
 }
 
+// Running as an installed PWA (home-screen app)? Then there are no browser bars.
+const isStandalone =
+  window.matchMedia('(display-mode: fullscreen)').matches ||
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+
 function toggleFullscreen() {
   if (isFullscreen()) {
     (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  } else {
-    const req = appEl.requestFullscreen || appEl.webkitRequestFullscreen;
-    if (req) req.call(appEl);
+    return;
+  }
+  const req = appEl.requestFullscreen || appEl.webkitRequestFullscreen;
+  if (req) {
+    req.call(appEl);
+  } else if (!isStandalone) {
+    // Mainly iOS Safari: web pages can't force-hide the browser bars.
+    alert(
+      'Your browser (likely iOS Safari) does not support forced fullscreen.\n\n' +
+      'For a true full-screen experience, tap the Share button and choose ' +
+      '"Add to Home Screen", then open the app from your home screen.'
+    );
   }
 }
 
@@ -185,8 +200,9 @@ function updateFullscreenUI() {
   if (label) label.textContent = on ? 'Exit' : 'Fullscreen';
 }
 
-document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
-document.getElementById('fullscreenMobile').addEventListener('click', toggleFullscreen);
+const fsButton = document.getElementById('fullscreen');
+if (isStandalone) fsButton.style.display = 'none';
+fsButton.addEventListener('click', toggleFullscreen);
 document.addEventListener('fullscreenchange', () => { updateFullscreenUI(); resize(); });
 document.addEventListener('webkitfullscreenchange', () => { updateFullscreenUI(); resize(); });
 

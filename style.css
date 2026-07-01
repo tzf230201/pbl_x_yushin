@@ -56,24 +56,25 @@ body {
 .btn-ghost { text-decoration: none; color: var(--muted); }
 .btn-ghost:hover { background: #1f2733; color: var(--text); }
 
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
 
-#fullscreen { display: inline-flex; align-items: center; gap: 6px; }
+.btn-fs { display: inline-flex; align-items: center; gap: 6px; }
 .fs-icon { font-size: 16px; line-height: 1; }
-
-/* Big thumb-friendly fullscreen button (mobile only) inside zoom controls */
-.fs-mobile { display: none; }
 
 @media (max-width: 640px) {
   .title { font-size: 14px; }
-  .btn { padding: 7px 12px; font-size: 13px; }
-  /* On phones use the large corner button; hide the small topbar one */
-  #fullscreen { display: none; }
-  .fs-mobile { display: flex; }
+  .btn { padding: 7px 11px; font-size: 13px; }
+  /* Keep the fullscreen button up top but show icon only to save space */
+  .btn-fs .fs-label { display: none; }
+  .btn-ghost { display: none; }        /* hide WebXR text link on small screens */
 }
 
 /* Immersive look while in fullscreen */
 body.is-fullscreen .topbar { padding: 8px 14px; }
+
+/* Respect phone notches / safe areas */
+.topbar { padding-top: max(12px, env(safe-area-inset-top)); }
+.zoom-controls { bottom: max(24px, env(safe-area-inset-bottom)); }
 
 /* ---- Viewer ---- */
 #viewer { position: relative; flex: 1; overflow: hidden; }
