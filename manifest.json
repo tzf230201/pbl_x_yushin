@@ -1,6 +1,6 @@
 {
-  "name": "PBL x Yushin — GLB Viewer",
-  "short_name": "Yushin Viewer",
+  "name": "PBL x Yuushin — GLB Viewer",
+  "short_name": "Yuushin Viewer",
   "description": "A simple GLB/GLTF 3D model viewer with upload and zoom.",
   "start_url": "./",
   "scope": "./",
