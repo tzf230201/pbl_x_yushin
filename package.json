@@ -1,0 +1,14 @@
+{
+  "name": "scaniverse-webxr-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A lightweight static WebXR viewer for a Scaniverse GLB model.",
+  "scripts": {
+    "start": "http-server . -p 5173 -c-1",
+    "dev": "http-server . -p 5173 -c-1",
+    "start:lan": "http-server . -a 0.0.0.0 -p 5173 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

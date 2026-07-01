@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A lightweight WebXR viewer for a Scaniverse GLB model."
+    />
+    <title>Scaniverse WebXR Viewer</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <div class="scan-picker">
+      <label for="scan-select">Scan</label>
+      <select id="scan-select" aria-label="Choose scan"></select>
+    </div>
+
+    <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
+      <div class="loading-panel">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>Loading 3D scan</h1>
+        <p id="loading-message">Preparing viewer</p>
+      </div>
+    </div>
+
+    <a-scene
+      background="color: #d8e2ed"
+      renderer="antialias: true; colorManagement: true"
+      shadow="type: pcfsoft"
+      vr-mode-ui="enabled: true"
+      webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking"
+    >
+      <a-entity
+        id="scan-model"
+        position="0 0 0"
+        rotation="0 0 0"
+        scale="1 1 1"
+        shadow="cast: true; receive: true"
+      ></a-entity>
+
+      <a-plane
+        id="ground"
+        position="0 0 0"
+        rotation="-90 0 0"
+        width="20"
+        height="20"
+        color="#8c9b75"
+        roughness="1"
+        shadow="receive: true"
+      ></a-plane>
+
+      <a-sky color="#d8e2ed"></a-sky>
+
+      <a-entity light="type: ambient; color: #ffffff; intensity: 0.55"></a-entity>
+      <a-entity
+        light="type: directional; color: #ffffff; intensity: 1.1; castShadow: true"
+        position="3 6 4"
+      ></a-entity>
+
+      <a-entity id="rig" position="0 1.6 4">
+        <a-camera
+          id="camera"
+          look-controls="pointerLockEnabled: true"
+          wasd-controls="acceleration: 18"
+        >
+          <a-cursor
+            raycaster="objects: .clickable"
+            material="color: #ffffff; shader: flat"
+          ></a-cursor>
+        </a-camera>
+
+        <a-entity
+          laser-controls="hand: left"
+          raycaster="objects: .clickable"
+          line="color: #ffffff"
+        ></a-entity>
+        <a-entity
+          laser-controls="hand: right"
+          raycaster="objects: .clickable"
+          line="color: #ffffff"
+        ></a-entity>
+      </a-entity>
+    </a-scene>
+
+    <script src="./viewer.js"></script>
+  </body>
+</html>
