@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
 
 // ---- DOM ----
 const canvas    = document.getElementById('scene');
@@ -108,6 +109,7 @@ function loadFromURL(url, name) {
       modelName.textContent = name || 'model.glb';
       loader.classList.add('hidden');
       URL.revokeObjectURL(url);
+      prepareUSDZ(); // pre-build USDZ for iOS AR Quick Look (no-op elsewhere)
     },
     undefined,
     (err) => {
@@ -233,16 +235,22 @@ const savedModelState = { pos: new THREE.Vector3(), scale: new THREE.Vector3(), 
 // ---- AR support detection ----
 const camFeed    = document.getElementById('camFeed');
 const arHintText = document.getElementById('arHintText');
+const arAnchor   = document.getElementById('arAnchor');
+
+// iPhone/iPad: no WebXR, but ARKit "AR Quick Look" gives true world-anchored AR
+const isIOS =
+  /iP(hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 let webxrARSupported = false;
-// Camera + motion-sensor fallback: works on most phones (incl. iPhone) over HTTPS
+// Camera + motion-sensor fallback: rotation-only "look around" for other phones
 const canFallbackAR =
   window.isSecureContext &&
   !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
   window.matchMedia('(pointer: coarse)').matches;
 
 function refreshARButton() {
-  arBtn.hidden = !(webxrARSupported || canFallbackAR);
+  arBtn.hidden = !(webxrARSupported || isIOS || canFallbackAR);
 }
 
 if (navigator.xr && navigator.xr.isSessionSupported) {
@@ -251,6 +259,42 @@ if (navigator.xr && navigator.xr.isSessionSupported) {
     .catch(() => { refreshARButton(); });
 } else {
   refreshARButton();
+}
+
+// ---- iOS AR Quick Look: export the current model to USDZ ahead of time ----
+let usdzUrl = null;
+let usdzBusy = false;
+
+async function prepareUSDZ() {
+  if (!isIOS || !currentModel) return;
+  usdzBusy = true;
+  try {
+    currentModel.updateWorldMatrix(true, true);
+    const exporter = new USDZExporter();
+    const data = await exporter.parse(currentModel);
+    if (usdzUrl) URL.revokeObjectURL(usdzUrl);
+    const blob = new Blob([data], { type: 'model/vnd.usdz+zip' });
+    usdzUrl = URL.createObjectURL(blob);
+    arAnchor.setAttribute('href', usdzUrl);
+  } catch (err) {
+    console.error('USDZ export failed:', err);
+    usdzUrl = null;
+  } finally {
+    usdzBusy = false;
+  }
+}
+
+function startQuickLook() {
+  if (usdzUrl) {
+    arAnchor.click(); // launches ARKit Quick Look (system handles camera + tracking)
+  } else if (usdzBusy) {
+    alert('Preparing the AR model… please tap AR again in a moment.');
+  } else {
+    prepareUSDZ().then(() => {
+      if (usdzUrl) arAnchor.click();
+      else alert('Could not prepare this model for AR Quick Look.');
+    });
+  }
 }
 
 async function startAR() {
@@ -498,8 +542,9 @@ arBtn.addEventListener('click', () => {
     alert('Load a model first, then tap AR.');
     return;
   }
-  if (webxrARSupported) startAR();
-  else startFallbackAR();
+  if (webxrARSupported) startAR();          // Android + ARCore: full WebXR AR
+  else if (isIOS) startQuickLook();         // iPhone/iPad: ARKit AR Quick Look
+  else startFallbackAR();                   // others: rotation-only look-around
 });
 arExit.addEventListener('click', () => {
   const session = renderer.xr.getSession();
