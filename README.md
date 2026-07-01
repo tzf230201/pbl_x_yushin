@@ -95,6 +95,20 @@ For this repository on GitHub Pages, the URL will be:
 https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
 ```
 
+The current Asahigaoka files are:
+
+```text
+public/assets/scans/Asahigaoka.glb
+public/assets/splats/Asahigaoka.ply
+```
+
+Direct Asahigaoka links:
+
+```text
+https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
+```
+
 The splat viewer uses WebGL mode because WebXR / VR needs WebGL in the bundled SuperSplat Viewer.
 
 ## If You Only Have SPZ
@@ -224,6 +238,7 @@ https://tzf230201.github.io/pbl_x_yuushin/
 Direct scan links will look like:
 
 ```text
+https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
 https://tzf230201.github.io/pbl_x_yuushin/?scan=main
 https://tzf230201.github.io/pbl_x_yuushin/?scan=duck
 https://tzf230201.github.io/pbl_x_yuushin/?scan=box
@@ -233,6 +248,7 @@ https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
 PLY splat link:
 
 ```text
+https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
 https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
 ```
 

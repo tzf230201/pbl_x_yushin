@@ -2,6 +2,14 @@
 // A-Frame uses meters. Rotation is in degrees: X Y Z.
 const SCANS = [
   {
+    id: "asahigaoka",
+    name: "Asahigaoka GLB",
+    file: "./public/assets/scans/Asahigaoka.glb",
+    position: "0 0 0",
+    rotation: "0 0 0",
+    scale: "1 1 1",
+  },
+  {
     id: "main",
     name: "Example main",
     file: "./public/assets/scan.glb",
