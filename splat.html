@@ -3,81 +3,129 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scaniverse Splat Viewer</title>
+    <title>PBL x Yushin — Splat Viewer (.ply)</title>
     <style>
-      html,
+      :root {
+        --bg: #0e1116;
+        --panel: #161b22;
+        --border: #262d38;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #4f9dff;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        display: grid;
-        place-items: center;
-        color: #f8fafc;
-        background: #111820;
-        font-family:
-          Inter,
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        padding: 24px 16px 48px;
       }
-
-      main {
-        width: min(520px, calc(100% - 32px));
+      .wrap { max-width: 760px; margin: 0 auto; }
+      header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
       }
-
-      h1 {
-        margin: 0 0 10px;
-        font-size: 1.4rem;
-        letter-spacing: 0;
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+      .logo { color: var(--accent); font-size: 20px; }
+      .accent { color: var(--accent); }
+      .back {
+        color: var(--muted); text-decoration: none; font-size: 14px;
+        padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
       }
-
-      p {
-        margin: 0;
-        color: #cbd5e1;
-        line-height: 1.55;
+      .back:hover { color: var(--text); background: #1f2733; }
+      h1 { font-size: 18px; margin-bottom: 6px; }
+      .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+      .list { display: grid; gap: 10px; }
+      .card {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 16px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-decoration: none; color: var(--text);
+        transition: border-color 0.15s, background 0.15s;
       }
-
-      a {
-        color: #93c5fd;
+      .card:hover { border-color: var(--accent); background: #1a212b; }
+      .card .name { font-weight: 600; font-size: 15px; }
+      .card .file { color: var(--muted); font-size: 12px; margin-top: 2px; word-break: break-all; }
+      .card .size {
+        flex-shrink: 0; color: var(--accent); font-size: 12px; font-weight: 600;
+        border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
       }
+      .note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .note code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
     </style>
   </head>
   <body>
-    <main>
-      <h1>Opening splat viewer</h1>
-      <p>
-        If the viewer does not open automatically,
-        <a id="viewer-link" href="./splat-viewer/index.html">open it here</a>.
+    <div class="wrap">
+      <header>
+        <div class="brand"><span class="logo">◆</span> PBL <span class="accent">x</span> Yushin — Splats</div>
+        <a class="back" href="./">← GLB Viewer</a>
+      </header>
+
+      <h1>Gaussian Splat scans (.ply)</h1>
+      <p class="sub">Tap a scan to open it in the SuperSplat viewer.</p>
+
+      <div id="list" class="list"></div>
+
+      <p class="note">
+        Direct link format: <code>splat.html?splat=ID</code> — useful for QR codes.<br />
+        You can also open any hosted file with <code>splat.html?file=URL</code>.
       </p>
-    </main>
+    </div>
 
     <script>
+      // id -> { file, label, mb }  (files live in public/assets/splats/)
       const SPLATS = {
-        main: "./public/assets/splats/Asahigaoka.ply",
-        asahigaoka: "./public/assets/splats/Asahigaoka.ply",
-        "main-sog": "./public/assets/splats/main.sog",
+        asahigaoka:          { file: "Asahigaoka.ply",                      label: "Asahigaoka",                 mb: 50 },
+        koremasa:            { file: "Koremasa.ply",                        label: "Koremasa",                   mb: 87 },
+        "scaniverse-0702":   { file: "Scaniverse 2026-07-02 111133.ply",    label: "Scaniverse 2026-07-02",      mb: 6 },
+        "thickline-whole":   { file: "scan_thickline_whole.ply",            label: "Thick line — whole",         mb: 81 },
+        "thickline-left":    { file: "scan_thickline_leftside (1).ply",     label: "Thick line — left side",     mb: 77 },
+        "thickline-right":   { file: "scan_thickline_rightside.ply",        label: "Thick line — right side",    mb: 61 },
+        "thinline-left":     { file: "scan_thinline_leftside.ply",          label: "Thin line — left side",      mb: 74 },
+        "thinline-wire":     { file: "scan_thinline_wirenumber.ply",        label: "Thin line — wire number",    mb: 28 },
       };
+      // Back-compat aliases used by older links/README
+      const ALIASES = { main: "asahigaoka" };
 
-      const currentUrl = new URL(window.location.href);
-      const splatId =
-        currentUrl.searchParams.get("splat") ||
-        currentUrl.searchParams.get("scan") ||
-        "main";
-      const file = currentUrl.searchParams.get("file") || SPLATS[splatId] || SPLATS.main;
+      const BASE = "./public/assets/splats/";
 
-      const viewerUrl = new URL("./splat-viewer/index.html", window.location.href);
-      viewerUrl.searchParams.set("content", new URL(file, window.location.href).href);
-      viewerUrl.searchParams.set(
-        "settings",
-        new URL("./splat-viewer/settings.json", window.location.href).href,
-      );
-      viewerUrl.searchParams.set("webgl", "");
-      viewerUrl.searchParams.set("aa", "");
+      function viewerUrlFor(fileUrl) {
+        const viewerUrl = new URL("./splat-viewer/index.html", window.location.href);
+        viewerUrl.searchParams.set("content", new URL(fileUrl, window.location.href).href);
+        viewerUrl.searchParams.set("settings", new URL("./splat-viewer/settings.json", window.location.href).href);
+        viewerUrl.searchParams.set("webgl", "");
+        viewerUrl.searchParams.set("aa", "");
+        return viewerUrl.href;
+      }
 
-      document.querySelector("#viewer-link").href = viewerUrl.href;
-      window.location.replace(viewerUrl.href);
+      // ---- Direct-link mode: ?splat=id or ?file=url redirects straight to the viewer ----
+      const params = new URL(window.location.href).searchParams;
+      const rawId = params.get("splat") || params.get("scan");
+      const id = ALIASES[rawId] || rawId;
+      const fileParam = params.get("file");
+
+      if (fileParam) {
+        window.location.replace(viewerUrlFor(fileParam));
+      } else if (id && SPLATS[id]) {
+        window.location.replace(viewerUrlFor(BASE + encodeURIComponent(SPLATS[id].file)));
+      } else {
+        // ---- Picker mode: list all scans ----
+        const list = document.getElementById("list");
+        for (const [key, s] of Object.entries(SPLATS)) {
+          const a = document.createElement("a");
+          a.className = "card";
+          a.href = viewerUrlFor(BASE + encodeURIComponent(s.file));
+          a.innerHTML =
+            '<div><div class="name"></div><div class="file"></div></div>' +
+            '<span class="size">' + s.mb + " MB</span>";
+          a.querySelector(".name").textContent = s.label;
+          a.querySelector(".file").textContent = s.file + "  ·  ?splat=" + key;
+          list.appendChild(a);
+        }
+      }
     </script>
   </body>
 </html>
