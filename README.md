@@ -5,13 +5,13 @@ A small static WebXR/VR viewer for 3D scans exported from Scaniverse on iPhone.
 Live demo:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
 ```
 
 Gaussian Splat demo:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
 ```
 
 ![Asahigaoka GLB viewer](docs/images/asahigaoka-glb.png)
@@ -51,8 +51,8 @@ public/assets/splats/Asahigaoka.ply
 Direct Asahigaoka links:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
 ```
 
 ## Where to Put GLB Files
@@ -100,15 +100,15 @@ The repository still contains a few small example GLB files for debugging, but t
 Open sample models directly:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/?scan=duck
-https://tzf230201.github.io/pbl_x_yuushin/?scan=box
-https://tzf230201.github.io/pbl_x_yuushin/?scan=cesium-man
+https://tzf230201.github.io/pbl_x_yushin/?scan=duck
+https://tzf230201.github.io/pbl_x_yushin/?scan=box
+https://tzf230201.github.io/pbl_x_yushin/?scan=cesium-man
 ```
 
 Show samples in the dropdown:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/?samples=1
+https://tzf230201.github.io/pbl_x_yushin/?samples=1
 ```
 
 ## Where to Put the PLY Splat File
@@ -128,7 +128,7 @@ https://your-site.example/splat.html?splat=main
 For this repository on GitHub Pages, the main splat URL is:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=main
 ```
 
 The splat viewer uses WebGL mode because WebXR / VR needs WebGL in the bundled SuperSplat Viewer.
@@ -282,7 +282,7 @@ To publish:
 2. Open the repository on GitHub:
 
 ```text
-https://github.com/tzf230201/pbl_x_yuushin
+https://github.com/tzf230201/pbl_x_yushin
 ```
 
 3. Go to Settings > Pages.
@@ -293,20 +293,20 @@ https://github.com/tzf230201/pbl_x_yuushin
 The site should be available at:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/
+https://tzf230201.github.io/pbl_x_yushin/
 ```
 
 Direct scan links will look like:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
 ```
 
 PLY splat link:
 
 ```text
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=asahigaoka
-https://tzf230201.github.io/pbl_x_yuushin/splat.html?splat=main
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=main
 ```
 
 ### Netlify
