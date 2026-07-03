@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PBL x Yushin — Splat Viewer</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --border: #262d38;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #4f9dff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); overflow: hidden;
+    }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 14px;
+      padding-top: max(10px, env(safe-area-inset-top));
+      background: var(--panel); border-bottom: 1px solid var(--border); z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; min-width: 0; }
+    .logo { color: var(--accent); }
+    #title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-weight: 500; }
+    .actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--text); text-decoration: none;
+    }
+    .btn:hover { background: #1f2733; }
+    .btn-ar { background: rgba(79,157,255,0.12); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    .btn-ar[hidden] { display: none; }
+
+    #viewer { position: relative; flex: 1; overflow: hidden; }
+    .cam-feed {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: 0; display: none;
+    }
+    body.in-fallback-ar .cam-feed { display: block; }
+    #scene { display: block; width: 100%; height: 100%; position: relative; z-index: 1; }
+
+    .zoom-controls {
+      position: absolute; right: 16px;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 8px; z-index: 5;
+    }
+    .zoom-btn {
+      width: 46px; height: 46px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text);
+      font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .zoom-btn:active { transform: scale(0.94); }
+    .zoom-btn.reset { font-size: 18px; color: var(--accent); }
+
+    .loader {
+      position: absolute; inset: 0; z-index: 8;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: rgba(14,17,22,0.75);
+    }
+    .loader.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #pct { font-size: 13px; color: var(--muted); }
+
+    .ar-hint {
+      position: absolute; left: 50%; top: max(16px, env(safe-area-inset-top));
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 999px;
+      background: rgba(14,17,22,0.85); border: 1px solid var(--border);
+      font-size: 13px; z-index: 30; max-width: calc(100% - 24px);
+    }
+    .ar-hint.hidden { display: none; }
+    .ar-exit {
+      border: none; background: var(--accent); color: #fff;
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
+      flex-shrink: 0;
+    }
+    body.in-ar .topbar, body.in-ar .zoom-controls { display: none; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <a class="btn" href="./splat.html" title="Back to scan list">←</a>
+        <span class="logo">◆</span>
+        <span id="title">Splat Viewer</span>
+      </div>
+      <div class="actions">
+        <label class="btn">
+          <input type="file" id="plyInput" accept=".ply,.splat,.ksplat" hidden />
+          Open .ply
+        </label>
+        <button id="arBtn" class="btn btn-ar" hidden>◈ AR</button>
+      </div>
+    </header>
+
+    <main id="viewer">
+      <video id="camFeed" class="cam-feed" playsinline muted autoplay></video>
+      <canvas id="scene"></canvas>
+
+      <div id="loader" class="loader hidden">
+        <div class="spinner"></div>
+        <span id="pct">Loading…</span>
+      </div>
+
+      <div class="zoom-controls">
+        <button id="zoomIn"  class="zoom-btn" title="Zoom in">+</button>
+        <button id="zoomOut" class="zoom-btn" title="Zoom out">−</button>
+        <button id="reset"   class="zoom-btn reset" title="Reset view">⟳</button>
+      </div>
+
+      <div id="arHint" class="ar-hint hidden">
+        <span id="arHintText">Move your phone to look around</span>
+        <button id="arExit" class="ar-exit">Exit AR</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/splats-list.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+    // ---- DOM ----
+    const canvas   = document.getElementById('scene');
+    const viewerEl = document.getElementById('viewer');
+    const camFeed  = document.getElementById('camFeed');
+    const titleEl  = document.getElementById('title');
+    const loaderEl = document.getElementById('loader');
+    const pctEl    = document.getElementById('pct');
+    const arBtn    = document.getElementById('arBtn');
+    const arHint   = document.getElementById('arHint');
+    const arHintText = document.getElementById('arHintText');
+    const arExit   = document.getElementById('arExit');
+    const plyInput = document.getElementById('plyInput');
+
+    // ---- three.js setup ----
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.xr.enabled = true;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e1116);
+
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 500);
+    camera.position.set(0, 1.6, 3);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 1, 0);
+    controls.minDistance = 0.2;
+    controls.maxDistance = 60;
+
+    // Root group holding the splats (rotated: splat PLYs are stored Y-down,
+    // same 180° flip the bundled SuperSplat viewer applies)
+    const splatRoot = new THREE.Group();
+    splatRoot.rotation.z = Math.PI;
+    scene.add(splatRoot);
+
+    // Splat renderer that behaves like a normal three.js object.
+    // sharedMemoryForWorkers must be off: GitHub Pages sends no COOP/COEP
+    // headers, so SharedArrayBuffer is unavailable.
+    const splatViewer = new GaussianSplats3D.DropInViewer({
+      sharedMemoryForWorkers: false,
+      gpuAcceleratedSort: false,
+    });
+    splatRoot.add(splatViewer);
+
+    // ---- Load scene from URL params ----
+    const params = new URL(window.location.href).searchParams;
+    const rawId = params.get('splat') || params.get('scan');
+    const id = (window.SPLAT_ALIASES && window.SPLAT_ALIASES[rawId]) || rawId;
+    const fileParam = params.get('file');
+    const nameParam = params.get('name');
+
+    let loadedOnce = false;
+
+    function setProgress(pct, label) {
+      pctEl.textContent = (label || 'Loading') + (pct != null ? ' — ' + Math.round(pct) + '%' : '…');
+    }
+
+    async function loadSplat(url, label, forcePly) {
+      loaderEl.classList.remove('hidden');
+      setProgress(0, 'Downloading');
+      titleEl.textContent = label;
+      try {
+        if (loadedOnce) {
+          await splatViewer.removeSplatScene(0);
+        }
+        const options = {
+          showLoadingUI: false,
+          progressiveLoad: false,
+          onProgress: (pct, _lbl, stage) => {
+            setProgress(pct, stage === 1 ? 'Processing' : 'Downloading');
+          },
+        };
+        // Blob URLs have no extension — tell the loader it is a PLY.
+        if (forcePly) options.format = GaussianSplats3D.SceneFormat.Ply;
+        await splatViewer.addSplatScene(url, options);
+        loadedOnce = true;
+        loaderEl.classList.add('hidden');
+        frameSplat();
+      } catch (err) {
+        console.error(err);
+        loaderEl.classList.add('hidden');
+        alert('Failed to load splat: ' + (err && err.message ? err.message : err));
+      }
+    }
+
+    // Fit camera to the loaded splat's bounding sphere
+    function frameSplat() {
+      const box = new THREE.Box3().setFromObject(splatRoot);
+      if (box.isEmpty()) { controls.update(); return; }
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 2;
+      const dist = (maxDim / (2 * Math.tan((Math.PI * camera.fov) / 360))) * 1.2;
+      controls.target.copy(center);
+      camera.position.set(center.x + dist * 0.4, center.y + dist * 0.35, center.z + dist);
+      controls.minDistance = maxDim * 0.05;
+      controls.maxDistance = maxDim * 6;
+      controls.update();
+    }
+
+    if (fileParam) {
+      loadSplat(fileParam, nameParam || 'Local file', !/\.(ply|splat|ksplat)$/i.test(fileParam));
+    } else if (id && window.SPLATS[id]) {
+      const s = window.SPLATS[id];
+      loadSplat(window.SPLATS_BASE + encodeURIComponent(s.file), s.label, false);
+    } else {
+      titleEl.textContent = 'Open a .ply file or pick a scan';
+    }
+
+    // ---- Local file open (same-page, so the blob URL stays alive) ----
+    let localBlobUrl = null;
+    plyInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
+      localBlobUrl = URL.createObjectURL(file);
+      loadSplat(localBlobUrl, file.name, !/\.(splat|ksplat)$/i.test(file.name));
+      plyInput.value = '';
+    });
+
+    // ---- Zoom buttons ----
+    function dolly(scale) {
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+      const d = THREE.MathUtils.clamp(dir.length() * scale, controls.minDistance, controls.maxDistance);
+      dir.setLength(d);
+      camera.position.copy(controls.target).add(dir);
+      controls.update();
+    }
+    document.getElementById('zoomIn').addEventListener('click', () => dolly(0.8));
+    document.getElementById('zoomOut').addEventListener('click', () => dolly(1.25));
+    document.getElementById('reset').addEventListener('click', frameSplat);
+
+    // =================================================================
+    //  AR
+    // =================================================================
+    const isIOS =
+      /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    let webxrARSupported = false;
+    const canFallbackAR =
+      window.isSecureContext &&
+      !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+      window.matchMedia('(pointer: coarse)').matches;
+
+    function refreshARButton() {
+      arBtn.hidden = !(webxrARSupported || canFallbackAR);
+    }
+    if (navigator.xr && navigator.xr.isSessionSupported) {
+      navigator.xr.isSessionSupported('immersive-ar')
+        .then((s) => { webxrARSupported = s; refreshARButton(); })
+        .catch(refreshARButton);
+    } else {
+      refreshARButton();
+    }
+
+    // ---- WebXR AR (Android/ARCore): walk inside the scan ----
+    async function startWebXRAR() {
+      try {
+        const session = await navigator.xr.requestSession('immersive-ar', {
+          optionalFeatures: ['local-floor', 'dom-overlay'],
+          domOverlay: { root: document.body },
+        });
+        await renderer.xr.setSession(session);
+        session.addEventListener('end', () => {
+          document.body.classList.remove('in-ar');
+          arHint.classList.add('hidden');
+          scene.background = new THREE.Color(0x0e1116);
+          resize();
+          frameSplat();
+        });
+        document.body.classList.add('in-ar');
+        arHintText.textContent = 'Walk around — the scan is anchored to your space';
+        arHint.classList.remove('hidden');
+        scene.background = null;
+      } catch (err) {
+        console.error(err);
+        alert('Could not start AR: ' + (err && err.message ? err.message : err));
+      }
+    }
+
+    // ---- Fallback AR (iPhone & others): camera + gyroscope ----
+    let fallbackActive = false;
+    let camStream = null;
+    let deviceOrientation = null;
+    let screenOrient = 0;
+
+    const _zee = new THREE.Vector3(0, 0, 1);
+    const _euler = new THREE.Euler();
+    const _q0 = new THREE.Quaternion();
+    const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+
+    function setCameraFromSensors(q, alpha, beta, gamma, orient) {
+      _euler.set(beta, alpha, -gamma, 'YXZ');
+      q.setFromEuler(_euler);
+      q.multiply(_q1);
+      q.multiply(_q0.setFromAxisAngle(_zee, -orient));
+    }
+    const onDevOrient = (e) => { deviceOrientation = e; };
+    const onScrOrient = () => {
+      screenOrient = THREE.MathUtils.degToRad(
+        (screen.orientation && screen.orientation.angle) || window.orientation || 0
+      );
+    };
+
+    async function startFallbackAR() {
+      // Motion permission FIRST (iOS requires it inside the tap gesture)
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res !== 'granted') {
+            alert('Motion-sensor permission denied — the view will not follow your phone.');
+          }
+        }
+      } catch (e) { console.warn(e); }
+
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }, audio: false,
+        });
+      } catch (err) {
+        alert('Could not access the camera (' + (err && err.name ? err.name : 'error') + ').');
+        return;
+      }
+      camFeed.srcObject = camStream;
+      try { await camFeed.play(); } catch (e) {}
+
+      window.addEventListener('deviceorientation', onDevOrient, true);
+      onScrOrient();
+      window.addEventListener('orientationchange', onScrOrient);
+
+      fallbackActive = true;
+      document.body.classList.add('in-ar', 'in-fallback-ar');
+      arHintText.textContent = 'Move your phone to look around · pinch to scale';
+      arHint.classList.remove('hidden');
+      scene.background = null;
+      renderer.setClearAlpha(0);
+      controls.enabled = false;
+
+      // Put the viewer "inside" the scan: camera at the scene center
+      const box = new THREE.Box3().setFromObject(splatRoot);
+      if (!box.isEmpty()) {
+        const c = box.getCenter(new THREE.Vector3());
+        camera.position.copy(c);
+      }
+    }
+
+    function stopFallbackAR() {
+      fallbackActive = false;
+      document.body.classList.remove('in-ar', 'in-fallback-ar');
+      arHint.classList.add('hidden');
+      window.removeEventListener('deviceorientation', onDevOrient, true);
+      window.removeEventListener('orientationchange', onScrOrient);
+      deviceOrientation = null;
+      if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+      camFeed.srcObject = null;
+      scene.background = new THREE.Color(0x0e1116);
+      renderer.setClearAlpha(1);
+      controls.enabled = true;
+      camera.quaternion.set(0, 0, 0, 1);
+      frameSplat();
+    }
+
+    // Pinch to scale while in fallback AR
+    let pinchStart = 0, pinchBase = 1;
+    viewerEl.addEventListener('touchstart', (e) => {
+      if (fallbackActive && e.touches.length === 2) {
+        pinchStart = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY);
+        pinchBase = splatRoot.scale.x;
+      }
+    }, { passive: true });
+    viewerEl.addEventListener('touchmove', (e) => {
+      if (fallbackActive && e.touches.length === 2 && pinchStart) {
+        const d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY);
+        splatRoot.scale.setScalar(THREE.MathUtils.clamp(pinchBase * (d / pinchStart), 0.05, 20));
+      }
+    }, { passive: true });
+
+    arBtn.addEventListener('click', () => {
+      if (!loadedOnce) { alert('Load a scan first, then tap AR.'); return; }
+      if (webxrARSupported) startWebXRAR();
+      else startFallbackAR();
+    });
+    arExit.addEventListener('click', () => {
+      const session = renderer.xr.getSession();
+      if (session) session.end();
+      if (fallbackActive) stopFallbackAR();
+    });
+
+    // ---- Resize & render loop ----
+    function resize() {
+      const w = viewerEl.clientWidth, h = viewerEl.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    renderer.setAnimationLoop(() => {
+      if (fallbackActive) {
+        if (deviceOrientation) {
+          setCameraFromSensors(
+            camera.quaternion,
+            THREE.MathUtils.degToRad(deviceOrientation.alpha || 0),
+            THREE.MathUtils.degToRad(deviceOrientation.beta || 0),
+            THREE.MathUtils.degToRad(deviceOrientation.gamma || 0),
+            screenOrient
+          );
+        }
+      } else if (!renderer.xr.isPresenting) {
+        controls.update();
+      }
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>

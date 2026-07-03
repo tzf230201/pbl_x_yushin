@@ -49,10 +49,13 @@
       .card:hover { border-color: var(--accent); background: #1a212b; }
       .card .name { font-weight: 600; font-size: 15px; }
       .card .file { color: var(--muted); font-size: 12px; margin-top: 2px; word-break: break-all; }
+      .card .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
       .card .size {
-        flex-shrink: 0; color: var(--accent); font-size: 12px; font-weight: 600;
+        color: var(--accent); font-size: 12px; font-weight: 600;
         border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
       }
+      .card .alt { color: var(--muted); font-size: 11px; text-decoration: underline; }
+      .card .alt:hover { color: var(--text); }
       .note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
       .note code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
 
@@ -91,7 +94,7 @@
       </header>
 
       <h1>Gaussian Splat scans (.ply)</h1>
-      <p class="sub">Tap a scan to open it in the SuperSplat viewer.</p>
+      <p class="sub">Tap a scan to open it — works on phones, with an AR mode. Each card also links to the classic SuperSplat viewer.</p>
 
       <label class="upload" id="uploadZone">
         <input type="file" id="plyInput" accept=".ply,.sog,.spz" hidden />
@@ -108,22 +111,11 @@
       </p>
     </div>
 
+    <script src="assets/splats-list.js"></script>
     <script>
-      // id -> { file, label, mb }  (files live in public/assets/splats/)
-      const SPLATS = {
-        asahigaoka:          { file: "Asahigaoka.ply",                      label: "Asahigaoka",                 mb: 50 },
-        koremasa:            { file: "Koremasa.ply",                        label: "Koremasa",                   mb: 87 },
-        "scaniverse-0702":   { file: "Scaniverse 2026-07-02 111133.ply",    label: "Scaniverse 2026-07-02",      mb: 6 },
-        "thickline-whole":   { file: "scan_thickline_whole.ply",            label: "Thick line — whole",         mb: 81 },
-        "thickline-left":    { file: "scan_thickline_leftside (1).ply",     label: "Thick line — left side",     mb: 77 },
-        "thickline-right":   { file: "scan_thickline_rightside.ply",        label: "Thick line — right side",    mb: 61 },
-        "thinline-left":     { file: "scan_thinline_leftside.ply",          label: "Thin line — left side",      mb: 74 },
-        "thinline-wire":     { file: "scan_thinline_wirenumber.ply",        label: "Thin line — wire number",    mb: 28 },
-      };
-      // Back-compat aliases used by older links/README
-      const ALIASES = { main: "asahigaoka" };
-
-      const BASE = "./public/assets/splats/";
+      const SPLATS = window.SPLATS;
+      const ALIASES = window.SPLAT_ALIASES;
+      const BASE = window.SPLATS_BASE;
 
       function viewerUrlFor(fileUrl) {
         const viewerUrl = new URL("./splat-viewer/index.html", window.location.href);
@@ -140,22 +132,31 @@
       const id = ALIASES[rawId] || rawId;
       const fileParam = params.get("file");
 
+      const wantsSupersplat = params.get("viewer") === "supersplat";
+
       if (fileParam) {
         window.location.replace(viewerUrlFor(fileParam));
-      } else if (id && SPLATS[id]) {
+      } else if (id && SPLATS[id] && wantsSupersplat) {
         window.location.replace(viewerUrlFor(BASE + encodeURIComponent(SPLATS[id].file)));
+      } else if (id && SPLATS[id]) {
+        // Default direct links now open the mobile/AR viewer
+        window.location.replace("./splatview.html?splat=" + encodeURIComponent(id));
       } else {
         // ---- Picker mode: list all scans ----
         const list = document.getElementById("list");
         for (const [key, s] of Object.entries(SPLATS)) {
           const a = document.createElement("a");
           a.className = "card";
-          a.href = viewerUrlFor(BASE + encodeURIComponent(s.file));
+          a.href = "./splatview.html?splat=" + encodeURIComponent(key);
           a.innerHTML =
             '<div><div class="name"></div><div class="file"></div></div>' +
-            '<span class="size">' + s.mb + " MB</span>";
+            '<span class="side"><span class="size">' + s.mb + " MB</span>" +
+            '<a class="alt" href="#">SuperSplat</a></span>';
           a.querySelector(".name").textContent = s.label;
           a.querySelector(".file").textContent = s.file + "  ·  ?splat=" + key;
+          const alt = a.querySelector(".alt");
+          alt.href = viewerUrlFor(BASE + encodeURIComponent(s.file));
+          alt.addEventListener("click", (e) => e.stopPropagation());
           list.appendChild(a);
         }
 
@@ -187,8 +188,9 @@
           });
 
           const frame = document.createElement("iframe");
-          frame.allow = "xr-spatial-tracking; fullscreen";
-          frame.src = viewerUrlFor(activeBlobUrl);
+          frame.allow = "camera; gyroscope; accelerometer; xr-spatial-tracking; fullscreen";
+          frame.src = "./splatview.html?file=" + encodeURIComponent(activeBlobUrl) +
+                      "&name=" + encodeURIComponent(file.name);
 
           wrap.appendChild(frame);
           wrap.appendChild(closeBtn);
