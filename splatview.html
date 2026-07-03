@@ -195,6 +195,47 @@
     });
     splatRoot.add(splatViewer);
 
+    // ---- AR transform helpers ----
+    // In AR the scan shrinks to a table-top miniature you can place & scale.
+    const AR_TARGET_SIZE = 1.2; // meters
+    const savedXf = { pos: new THREE.Vector3(), scale: new THREE.Vector3(), saved: false };
+
+    function saveSplatTransform() {
+      savedXf.pos.copy(splatRoot.position);
+      savedXf.scale.copy(splatRoot.scale);
+      savedXf.saved = true;
+    }
+    function restoreSplatTransform() {
+      if (!savedXf.saved) return;
+      splatRoot.position.copy(savedXf.pos);
+      splatRoot.scale.copy(savedXf.scale);
+    }
+    function miniaturize() {
+      const box = new THREE.Box3().setFromObject(splatRoot);
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      splatRoot.scale.setScalar((AR_TARGET_SIZE / maxDim) * splatRoot.scale.x);
+    }
+    // Move the splat so its base sits on `point` (center-aligned on X/Z)
+    function placeSplatAt(point) {
+      const box = new THREE.Box3().setFromObject(splatRoot);
+      if (box.isEmpty()) return;
+      const center = box.getCenter(new THREE.Vector3());
+      splatRoot.position.x += point.x - center.x;
+      splatRoot.position.z += point.z - center.z;
+      splatRoot.position.y += point.y - box.min.y;
+    }
+
+    // Placement reticle for WebXR hit-testing
+    const reticle = new THREE.Mesh(
+      new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x4f9dff })
+    );
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
+
     // ---- Load scene from URL params ----
     const params = new URL(window.location.href).searchParams;
     const rawId = params.get('splat') || params.get('scan');
@@ -307,28 +348,78 @@
       refreshARButton();
     }
 
-    // ---- WebXR AR (Android/ARCore): walk inside the scan ----
+    // ---- WebXR AR (Android/ARCore): hit-test, tap to place, pinch to scale ----
+    let hitTestSource = null;
+    let hitTestRequested = false;
+    let touchCount = 0;
+    window.addEventListener('touchstart', (e) => { touchCount = e.touches.length; }, true);
+    window.addEventListener('touchend',   (e) => { touchCount = e.touches.length; }, true);
+
     async function startWebXRAR() {
       try {
         const session = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['hit-test'],
           optionalFeatures: ['local-floor', 'dom-overlay'],
           domOverlay: { root: document.body },
         });
         await renderer.xr.setSession(session);
+        saveSplatTransform();
+        miniaturize();
+        splatRoot.visible = false;   // hidden until the user taps a surface
+        hitTestSource = null;
+        hitTestRequested = false;
         session.addEventListener('end', () => {
           document.body.classList.remove('in-ar');
           arHint.classList.add('hidden');
+          reticle.visible = false;
+          hitTestSource = null;
+          hitTestRequested = false;
+          splatRoot.visible = true;
+          restoreSplatTransform();
           scene.background = new THREE.Color(0x0e1116);
           resize();
           frameSplat();
         });
         document.body.classList.add('in-ar');
-        arHintText.textContent = 'Walk around — the scan is anchored to your space';
+        arHintText.textContent = 'Point at the floor and tap to place · tap again to move · pinch to scale';
         arHint.classList.remove('hidden');
         scene.background = null;
       } catch (err) {
         console.error(err);
         alert('Could not start AR: ' + (err && err.message ? err.message : err));
+      }
+    }
+
+    // Tap -> place (or move) the miniature onto the reticle
+    const arController = renderer.xr.getController(0);
+    arController.addEventListener('select', () => {
+      if (touchCount >= 2) return;         // ignore taps that belong to a pinch
+      if (!reticle.visible) return;
+      splatRoot.visible = true;
+      placeSplatAt(new THREE.Vector3().setFromMatrixPosition(reticle.matrix));
+    });
+    scene.add(arController);
+
+    function updateHitTest(frame) {
+      const session = renderer.xr.getSession();
+      const refSpace = renderer.xr.getReferenceSpace();
+      if (!hitTestRequested) {
+        session.requestReferenceSpace('viewer').then((viewerSpace) => {
+          session.requestHitTestSource({ space: viewerSpace }).then((src) => {
+            hitTestSource = src;
+          });
+        });
+        hitTestRequested = true;
+      }
+      if (hitTestSource) {
+        const results = frame.getHitTestResults(hitTestSource);
+        if (results.length > 0) {
+          const pose = results[0].getPose(refSpace);
+          reticle.visible = true;
+          reticle.matrix.fromArray(pose.transform.matrix);
+        } else {
+          reticle.visible = false;
+        }
       }
     }
 
@@ -385,18 +476,17 @@
 
       fallbackActive = true;
       document.body.classList.add('in-ar', 'in-fallback-ar');
-      arHintText.textContent = 'Move your phone to look around · pinch to scale';
+      arHintText.textContent = 'Move phone to look around · drag to move · pinch to scale';
       arHint.classList.remove('hidden');
       scene.background = null;
       renderer.setClearAlpha(0);
       controls.enabled = false;
 
-      // Put the viewer "inside" the scan: camera at the scene center
-      const box = new THREE.Box3().setFromObject(splatRoot);
-      if (!box.isEmpty()) {
-        const c = box.getCenter(new THREE.Vector3());
-        camera.position.copy(c);
-      }
+      // Miniature placed in front of the viewer (camera pivots at origin)
+      saveSplatTransform();
+      miniaturize();
+      camera.position.set(0, 0, 0);
+      placeSplatAt(new THREE.Vector3(0, -0.8, -2));
     }
 
     function stopFallbackAR() {
@@ -412,26 +502,57 @@
       renderer.setClearAlpha(1);
       controls.enabled = true;
       camera.quaternion.set(0, 0, 0, 1);
+      restoreSplatTransform();
       frameSplat();
     }
 
-    // Pinch to scale while in fallback AR
+    // ---- AR touch gestures (fallback + WebXR dom-overlay) ----
+    // Pinch scales the miniature; a one-finger drag moves it (fallback mode).
+    function inAnyAR() { return fallbackActive || renderer.xr.isPresenting; }
     let pinchStart = 0, pinchBase = 1;
-    viewerEl.addEventListener('touchstart', (e) => {
-      if (fallbackActive && e.touches.length === 2) {
+    let dragLast = null;
+    const dragTarget = document.body; // dom-overlay routes touches to the page
+
+    dragTarget.addEventListener('touchstart', (e) => {
+      if (!inAnyAR()) return;
+      if (e.touches.length === 2) {
+        dragLast = null;
         pinchStart = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY);
         pinchBase = splatRoot.scale.x;
+      } else if (e.touches.length === 1 && fallbackActive) {
+        dragLast = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     }, { passive: true });
-    viewerEl.addEventListener('touchmove', (e) => {
-      if (fallbackActive && e.touches.length === 2 && pinchStart) {
+
+    dragTarget.addEventListener('touchmove', (e) => {
+      if (!inAnyAR()) return;
+      if (e.touches.length === 2 && pinchStart) {
         const d = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY);
-        splatRoot.scale.setScalar(THREE.MathUtils.clamp(pinchBase * (d / pinchStart), 0.05, 20));
+        // Rescale around the miniature's base so it stays put
+        const box = new THREE.Box3().setFromObject(splatRoot);
+        const anchor = box.isEmpty() ? null : new THREE.Vector3(
+          (box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+        splatRoot.scale.setScalar(THREE.MathUtils.clamp(pinchBase * (d / pinchStart), 0.02, 20));
+        if (anchor) placeSplatAt(anchor);
+      } else if (e.touches.length === 1 && fallbackActive && dragLast) {
+        // Drag moves the miniature in the camera's view plane
+        const dx = e.touches[0].clientX - dragLast.x;
+        const dy = e.touches[0].clientY - dragLast.y;
+        dragLast = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        splatRoot.position.addScaledVector(right, dx * 0.004);
+        splatRoot.position.addScaledVector(up, -dy * 0.004);
       }
+    }, { passive: true });
+
+    dragTarget.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) pinchStart = 0;
+      if (e.touches.length < 1) dragLast = null;
     }, { passive: true });
 
     arBtn.addEventListener('click', () => {
@@ -455,7 +576,8 @@
     window.addEventListener('resize', resize);
     resize();
 
-    renderer.setAnimationLoop(() => {
+    renderer.setAnimationLoop((timestamp, frame) => {
+      if (frame) updateHitTest(frame);   // only present during a WebXR session
       if (fallbackActive) {
         if (deviceOrientation) {
           setCameraFromSensors(

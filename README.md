@@ -1,11 +1,16 @@
-# Scaniverse WebXR Viewer
+# PBL x Yushin — 3D Viewers
 
-A small static WebXR/VR viewer for 3D scans exported from Scaniverse on iPhone.
+Static 3D viewers for GLB models and Scaniverse Gaussian-splat scans, deployed on GitHub Pages.
 
-Live demo:
+- `index.html` — GLB viewer: upload .glb, zoom, environment/HDRI presets, AR mode
+- `splat.html` — splat scan picker (.ply), opens the mobile/AR splat viewer
+- `splatview.html` — Gaussian-splat viewer with touch controls and AR mode
+
+Live:
 
 ```text
-https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/
+https://tzf230201.github.io/pbl_x_yushin/splat.html
 ```
 
 Gaussian Splat demo:
@@ -13,6 +18,8 @@ Gaussian Splat demo:
 ```text
 https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
 ```
+
+> Note: the old A-Frame/WebXR viewer that this README's later sections describe was removed; splat-related instructions below (formats, conversion, file locations) still apply.
 
 ![Asahigaoka GLB viewer](docs/images/asahigaoka-glb.png)
 
