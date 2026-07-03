@@ -55,6 +55,32 @@
       }
       .note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
       .note code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+
+      .upload {
+        display: flex; align-items: center; gap: 14px;
+        padding: 16px;
+        margin-bottom: 14px;
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .upload:hover, .upload.dragover { border-color: var(--accent); background: rgba(79, 157, 255, 0.08); }
+      .upload-icon { font-size: 22px; color: var(--accent); }
+      .muted-s { color: var(--muted); font-size: 12px; }
+
+      /* Fullscreen iframe shown when viewing an uploaded file.
+         The parent page must stay alive so the blob URL keeps working. */
+      .frame-wrap { position: fixed; inset: 0; z-index: 50; background: #000; }
+      .frame-wrap iframe { width: 100%; height: 100%; border: 0; }
+      .frame-close {
+        position: absolute; top: max(10px, env(safe-area-inset-top)); right: 12px;
+        z-index: 51;
+        border: none; border-radius: 999px;
+        background: rgba(14, 17, 22, 0.85); color: var(--text);
+        padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .frame-close:hover { background: var(--accent); }
     </style>
   </head>
   <body>
@@ -66,6 +92,13 @@
 
       <h1>Gaussian Splat scans (.ply)</h1>
       <p class="sub">Tap a scan to open it in the SuperSplat viewer.</p>
+
+      <label class="upload" id="uploadZone">
+        <input type="file" id="plyInput" accept=".ply,.sog,.spz" hidden />
+        <span class="upload-icon">⬆</span>
+        <span><strong>Open your own .ply file</strong><br />
+        <span class="muted-s">tap to choose, or drag &amp; drop it here</span></span>
+      </label>
 
       <div id="list" class="list"></div>
 
@@ -125,6 +158,58 @@
           a.querySelector(".file").textContent = s.file + "  ·  ?splat=" + key;
           list.appendChild(a);
         }
+
+        // ---- Local file upload ----
+        // A blob URL only lives as long as the page that made it, so the
+        // viewer is opened inside a fullscreen iframe instead of navigating.
+        const plyInput = document.getElementById("plyInput");
+        const uploadZone = document.getElementById("uploadZone");
+        let activeBlobUrl = null;
+
+        function openLocalFile(file) {
+          if (!file) return;
+          if (!/\.(ply|sog|spz)$/i.test(file.name)) {
+            alert("Please choose a .ply file (Gaussian splat export).");
+            return;
+          }
+          activeBlobUrl = URL.createObjectURL(file);
+
+          const wrap = document.createElement("div");
+          wrap.className = "frame-wrap";
+
+          const closeBtn = document.createElement("button");
+          closeBtn.className = "frame-close";
+          closeBtn.textContent = "✕ Close — " + file.name;
+          closeBtn.addEventListener("click", () => {
+            wrap.remove();
+            if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null; }
+            plyInput.value = "";
+          });
+
+          const frame = document.createElement("iframe");
+          frame.allow = "xr-spatial-tracking; fullscreen";
+          frame.src = viewerUrlFor(activeBlobUrl);
+
+          wrap.appendChild(frame);
+          wrap.appendChild(closeBtn);
+          document.body.appendChild(wrap);
+        }
+
+        plyInput.addEventListener("change", (e) => openLocalFile(e.target.files[0]));
+
+        ["dragenter", "dragover"].forEach((ev) =>
+          uploadZone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            uploadZone.classList.add("dragover");
+          })
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          uploadZone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove("dragover");
+          })
+        );
+        uploadZone.addEventListener("drop", (e) => openLocalFile(e.dataTransfer.files[0]));
       }
     </script>
   </body>
