@@ -159,7 +159,7 @@
       type: 'pattern',
       patternUrl: 'assets/ar/patt.hiro',
       smooth: true,
-      smoothCount: 8,
+      smoothCount: 10,
       smoothTolerance: 0.01,
     });
 
@@ -285,12 +285,29 @@
     }, { passive: true });
 
     // ---- Render loop ----
+    // The raw ARToolkit pose is noisy frame-to-frame, which reads as bad
+    // shaking. Decompose it and run an adaptive low-pass: micro-noise is
+    // damped hard, real motion is followed quickly.
+    const _tPos = new THREE.Vector3(), _tQuat = new THREE.Quaternion(), _tScl = new THREE.Vector3();
+    const _fPos = new THREE.Vector3(), _fQuat = new THREE.Quaternion();
+    let filterInit = false;
     let everFound = false;
     renderer.setAnimationLoop(() => {
       if (arSource.ready) {
         arContext.update(arSource.domElement);
         if (markerRoot.visible) {
-          trackedRoot.matrix.copy(markerRoot.matrix);
+          markerRoot.matrix.decompose(_tPos, _tQuat, _tScl);
+          if (!filterInit) {
+            _fPos.copy(_tPos);
+            _fQuat.copy(_tQuat);
+            filterInit = true;
+          } else {
+            const d = _fPos.distanceTo(_tPos);      // marker widths
+            const a = _fQuat.angleTo(_tQuat);       // radians
+            _fPos.lerp(_tPos, THREE.MathUtils.clamp(0.08 + d * 4, 0.08, 1));
+            _fQuat.slerp(_tQuat, THREE.MathUtils.clamp(0.08 + a * 3, 0.08, 1));
+          }
+          trackedRoot.matrix.compose(_fPos, _fQuat, _tScl);
           if (!everFound) {
             everFound = true;
             splatHolder.visible = true;
