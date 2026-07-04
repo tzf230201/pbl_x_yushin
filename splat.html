@@ -137,7 +137,7 @@
           a.href = "./splatview.html?splat=" + encodeURIComponent(key);
           a.innerHTML =
             '<div><div class="name"></div><div class="file"></div></div>' +
-            '<span class="size">' + s.mb + " MB</span>';
+            '<span class="size">' + s.mb + ' MB</span>';
           a.querySelector(".name").textContent = s.label;
           a.querySelector(".file").textContent = s.file + "  ·  ?splat=" + key;
           list.appendChild(a);
