@@ -666,16 +666,23 @@ hdrInput.addEventListener('change', (e) => {
 
 // ---- Render loop ----
 // setAnimationLoop drives the normal viewer, the WebXR session, and fallback AR.
+const _sensorTarget = new THREE.Quaternion();
 renderer.setAnimationLoop((timestamp, frame) => {
   if (frame) updateHitTest(frame);   // frame is only present during a WebXR session
 
   if (fallbackActive) {
-    // Drive the camera from the phone's motion sensors (IMU)
+    // Drive the camera from the phone's motion sensors (IMU), smoothed:
+    // a small deadband plus slerp low-pass damps gyro jitter so the
+    // scene holds still when the phone isn't moving.
     if (deviceOrientation) {
       const alpha = THREE.MathUtils.degToRad(deviceOrientation.alpha || 0);
       const beta  = THREE.MathUtils.degToRad(deviceOrientation.beta  || 0);
       const gamma = THREE.MathUtils.degToRad(deviceOrientation.gamma || 0);
-      setCameraFromSensors(camera.quaternion, alpha, beta, gamma, screenOrient);
+      setCameraFromSensors(_sensorTarget, alpha, beta, gamma, screenOrient);
+      const angle = camera.quaternion.angleTo(_sensorTarget);
+      if (angle > 0.002) {
+        camera.quaternion.slerp(_sensorTarget, Math.min(1, 0.12 + angle * 2));
+      }
     }
   } else if (!renderer.xr.isPresenting) {
     controls.update();

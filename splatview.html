@@ -576,17 +576,25 @@
     window.addEventListener('resize', resize);
     resize();
 
+    // Smoothed sensor camera: slerp toward the target orientation to damp
+    // gyro jitter so the scene holds still when the phone isn't moving.
+    const _sensorTarget = new THREE.Quaternion();
     renderer.setAnimationLoop((timestamp, frame) => {
       if (frame) updateHitTest(frame);   // only present during a WebXR session
       if (fallbackActive) {
         if (deviceOrientation) {
           setCameraFromSensors(
-            camera.quaternion,
+            _sensorTarget,
             THREE.MathUtils.degToRad(deviceOrientation.alpha || 0),
             THREE.MathUtils.degToRad(deviceOrientation.beta || 0),
             THREE.MathUtils.degToRad(deviceOrientation.gamma || 0),
             screenOrient
           );
+          // Deadband: ignore micro-noise, then low-pass the rest
+          const angle = camera.quaternion.angleTo(_sensorTarget);
+          if (angle > 0.002) {
+            camera.quaternion.slerp(_sensorTarget, Math.min(1, 0.12 + angle * 2));
+          }
         }
       } else if (!renderer.xr.isPresenting) {
         controls.update();
