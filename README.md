@@ -1,361 +1,79 @@
 # PBL x Yushin — 3D Viewers
 
-Static 3D viewers for GLB models and Scaniverse Gaussian-splat scans, deployed on GitHub Pages.
+Static 3D viewers deployed on GitHub Pages. No build step, no backend.
 
-- `index.html` — GLB viewer: upload .glb, zoom, environment/HDRI presets, AR mode
-- `splat.html` — splat scan picker (.ply), opens the mobile/AR splat viewer
-- `splatview.html` — Gaussian-splat viewer with touch controls and AR mode
+Live site: **https://tzf230201.github.io/pbl_x_yushin/**
 
-Live:
+| Page | What it does |
+|---|---|
+| `index.html` | **GLB viewer** — upload a `.glb`/`.gltf`, orbit/zoom, environment (HDRI) presets + custom HDR upload, fullscreen/PWA, AR mode |
+| `splat.html` | **Splat scan picker** — lists the project's Gaussian-splat scans, plus local `.ply` upload |
+| `splatview.html` | **Splat viewer** — renders `.ksplat`/`.ply` Gaussian splats with touch controls, zoom, and AR mode |
 
-```text
-https://tzf230201.github.io/pbl_x_yushin/
-https://tzf230201.github.io/pbl_x_yushin/splat.html
-```
+## AR support
 
-Gaussian Splat demo:
+| Platform | GLB | Gaussian splat |
+|---|---|---|
+| Android + Chrome (ARCore) | WebXR: reticle, tap-to-place, pinch scale — fully world-anchored | Same (WebXR) |
+| iPhone / iPad | AR Quick Look (ARKit) via automatic GLB→USDZ export — fully world-anchored | Camera + gyroscope look-around (rotation only; iOS Safari has no WebXR and Quick Look cannot render splats) |
+
+## Project scans
+
+Splat scans live in `public/assets/splats/` as compressed **`.ksplat`** files
+(converted from Scaniverse `.ply` exports — roughly 10× smaller and much faster to parse).
+They are registered in `assets/splats-list.js`.
+
+Direct links (good for QR codes):
 
 ```text
 https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
+https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=koremasa
 ```
 
-> Note: the old A-Frame/WebXR viewer that this README's later sections describe was removed; splat-related instructions below (formats, conversion, file locations) still apply.
+`splat.html?file=URL` opens any hosted splat file.
 
-![Asahigaoka GLB viewer](docs/images/asahigaoka-glb.png)
+### Adding a new scan
 
-It supports two workflows:
+1. In Scaniverse, capture in **Splat** mode and export as **PLY**.
+2. Convert to `.ksplat` (about 10× smaller). Using the
+   [GaussianSplats3D](https://github.com/mkkellogg/GaussianSplats3D) util:
 
-- Mesh / GLB scans through the main A-Frame viewer.
-- Gaussian Splat / PLY scans through the included SuperSplat Viewer.
+   ```bash
+   node util/create-ksplat.js input.ply output.ksplat 1 1
+   ```
 
-## Which Scaniverse Export to Use
+3. Put the `.ksplat` in `public/assets/splats/` and add an entry in
+   `assets/splats-list.js` (bump the `?v=` query on the `splats-list.js`
+   script tags in `splat.html` and `splatview.html` so caches refresh).
 
-If Scaniverse gives you `GLB`, use the main viewer:
+> A plain point-cloud PLY (only `x y z r g b` properties) is **not** a
+> Gaussian splat and will not render — re-export from Scaniverse in Splat mode.
 
-```text
-index.html
-```
-
-If Scaniverse only gives you `PLY` or `SPZ`, that scan is a Gaussian Splat. Use the splat viewer:
-
-```text
-splat.html
-```
-
-For the easiest GitHub Pages workflow, export `PLY` from Scaniverse.
-
-GitHub blocks normal Git pushes for files over 100 MB. If your `PLY` is too large, export `SPZ` from Scaniverse and convert it to `SOG` locally before pushing.
-
-## Current Project Scan
-
-The current Asahigaoka files are:
-
-```text
-public/assets/scans/Asahigaoka.glb
-public/assets/splats/Asahigaoka.ply
-```
-
-Direct Asahigaoka links:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
-https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
-```
-
-## Where to Put GLB Files
-
-Export your Scaniverse mesh as a GLB file and place it in:
-
-```text
-public/assets/scans/
-```
-
-Then add it to `PROJECT_SCANS` near the top of `viewer.js`.
-
-Example:
-
-```js
-const PROJECT_SCANS = [
-  {
-    id: "asahigaoka",
-    name: "Asahigaoka GLB",
-    file: "./public/assets/scans/Asahigaoka.glb",
-    position: "0 0 0",
-    rotation: "0 0 0",
-    scale: "1 1 1",
-  },
-];
-```
-
-For multiple scans, add more objects to `PROJECT_SCANS`.
-
-A-Frame positions and scales are in meters. Rotation values are degrees in `X Y Z` order.
-
-Each scan needs a unique `id`. The page can open directly to a scan using a URL like:
-
-```text
-https://your-site.example/?scan=asahigaoka
-https://your-site.example/?scan=machine
-```
-
-This is useful for QR codes.
-
-## Sample Models
-
-The repository still contains a few small example GLB files for debugging, but the normal dropdown only shows project scans.
-
-Open sample models directly:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/?scan=duck
-https://tzf230201.github.io/pbl_x_yushin/?scan=box
-https://tzf230201.github.io/pbl_x_yushin/?scan=cesium-man
-```
-
-Show samples in the dropdown:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/?samples=1
-```
-
-## Where to Put the PLY Splat File
-
-Export your Scaniverse Gaussian Splat as `PLY` and place it here:
-
-```text
-public/assets/splats/main.ply
-```
-
-Open the splat viewer:
-
-```text
-https://your-site.example/splat.html?splat=main
-```
-
-For this repository on GitHub Pages, the main splat URL is:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=main
-```
-
-The splat viewer uses WebGL mode because WebXR / VR needs WebGL in the bundled SuperSplat Viewer.
-
-## If You Only Have SPZ
-
-You can convert `SPZ` to `PLY` locally.
-
-Put the file here:
-
-```text
-public/assets/splats/main.spz
-```
-
-Run:
-
-```bash
-npm run convert:spz
-```
-
-This creates:
-
-```text
-public/assets/splats/main.ply
-```
-
-Then commit and push the new `main.ply` file.
-
-If the generated `main.ply` is too large for GitHub, convert to the web-friendly `SOG` format instead:
-
-```bash
-npm run convert:spz:sog
-```
-
-Then open:
-
-```text
-https://your-site.example/splat.html?splat=main-sog
-```
-
-## Run Locally
-
-Install dependencies:
+## Run locally
 
 ```bash
 npm install
+npm start        # http://localhost:5173
 ```
 
-Start a local static server:
+or without npm:
 
 ```bash
-npm start
+python -m http.server 5173
 ```
 
-Open:
+Don't open the HTML files via `file://` — module imports and model loading need a web server.
 
-```text
-http://localhost:5173
-```
+## Deploy
 
-You can also run it without installing dependencies:
+Pushing to `main` triggers `.github/workflows/pages.yml`, which publishes the
+whole repo to GitHub Pages. Keep the total site size modest (large binaries
+make the `syncing_files` step flaky); Pages also rate-limits to roughly ten
+deployments per hour, so a failed deploy usually just needs a retry after a
+short wait (Actions → failed run → Re-run jobs).
 
-```bash
-npx http-server . -p 5173 -c-1
-```
+## Tech
 
-Do not open `index.html` directly from the file system. Browsers usually block GLB loading from `file://` URLs.
-
-## Desktop Controls
-
-- Drag the mouse to look around.
-- On a touch screen, drag with one finger to look around.
-- Pinch with two fingers to move forward or backward.
-- Use `W`, `A`, `S`, and `D` or arrow keys to fly.
-- `W` moves toward where the camera is looking.
-- Use `Space` or `E` to move up.
-- Use `Shift` or `Q` to move down.
-- Press `R` to reset the view.
-- Press `Esc` to release pointer lock if needed.
-- You can also use the on-screen arrow buttons.
-
-## Meta Quest / Oculus Controls
-
-- Move your head to look around.
-- Use the left thumbstick to fly forward, backward, left, and right.
-- Forward follows where the headset is looking.
-- Use the right thumbstick up/down to move vertically.
-- Use the right thumbstick left/right to turn.
-- Select the VR button in the bottom-right corner to enter VR mode.
-
-## Optimization for Quest
-
-Meta Quest Browser can struggle with very large scans. Good targets:
-
-- GLB: keep under 50-100 MB when possible.
-- Textures: use 1K or 2K textures unless close inspection is required.
-- Meshes: decimate or simplify dense scans before upload.
-- PLY splats: if the file is too large, export SPZ and convert to SOG with `npm run convert:spz:sog`.
-- GitHub: normal Git pushes are blocked for files over 100 MB.
-
-## Test Checklist
-
-Current status:
-
-```text
-Desktop Chrome: OK
-GitHub Pages deployment: OK
-Asahigaoka GLB URL: OK
-Asahigaoka PLY URL: OK
-Meta Quest Browser: not tested in this repo yet
-Mobile Safari: not tested in this repo yet
-```
-
-## Open on Meta Quest / Oculus Browser
-
-1. Deploy the project online using HTTPS.
-2. Put `public/assets/scan.glb` in the deployed project before publishing.
-3. On the headset, open Meta Quest / Oculus Browser.
-4. Visit the deployed URL.
-5. Select the VR button in the bottom-right corner of the page.
-
-To open a specific scan directly, use a link with the scan ID:
-
-```text
-https://your-site.example/?scan=main
-```
-
-For a PLY splat, open:
-
-```text
-https://your-site.example/splat.html?splat=main
-```
-
-WebXR requires a secure context. Online deployments must use `https://`. Local `http://localhost` works for desktop testing, but a Quest headset normally needs an HTTPS public URL or a properly configured local network setup.
-
-## Deploy Online
-
-This project has no backend and no build step. Deploy the whole folder as a static site.
-
-### GitHub Pages
-
-This repository includes a GitHub Actions workflow at:
-
-```text
-.github/workflows/pages.yml
-```
-
-To publish:
-
-1. Commit and push the files to the `main` branch.
-2. Open the repository on GitHub:
-
-```text
-https://github.com/tzf230201/pbl_x_yushin
-```
-
-3. Go to Settings > Pages.
-4. Under Build and deployment, set Source to `GitHub Actions`.
-5. Open the Actions tab.
-6. Wait for `Deploy static site to GitHub Pages` to finish.
-
-The site should be available at:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/
-```
-
-Direct scan links will look like:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/?scan=asahigaoka
-```
-
-PLY splat link:
-
-```text
-https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=asahigaoka
-https://tzf230201.github.io/pbl_x_yushin/splat.html?splat=main
-```
-
-### Netlify
-
-1. Create a new Netlify site.
-2. Drag and drop this project folder into Netlify, or connect a Git repository.
-3. Leave the build command empty.
-4. Set the publish directory to the project root.
-
-### Vercel
-
-1. Import the project repository in Vercel.
-2. Choose "Other" as the framework if asked.
-3. Leave the build command empty.
-4. Set the output directory to `.` if Vercel asks for one.
-
-### Cloudflare Pages
-
-1. Create a new Cloudflare Pages project.
-2. Connect the Git repository.
-3. Leave the build command empty.
-4. Set the output directory to `.`.
-
-## Files
-
-- `index.html` - A-Frame scene, camera, lights, sky, ground, VR button, and GLB entity.
-- `viewer.js` - scan list, model path and transform settings, URL scan selection, plus loading/error handling.
-- `splat.html` - redirects PLY splats into the bundled SuperSplat Viewer.
-- `splat-viewer/` - static SuperSplat Viewer files for Gaussian Splat PLY files.
-- `docs/images/` - screenshots used by this README.
-- `styles.css` - loading screen and scan selector styles.
-- `package.json` - optional local static server scripts.
-
-## Credits
-
-- [A-Frame](https://aframe.io/) for the WebXR GLB viewer.
-- [SuperSplat Viewer](https://github.com/playcanvas/supersplat-viewer) for Gaussian Splat viewing.
-- [Splat Transform](https://github.com/playcanvas/splat-transform) for optional SPZ/PLY/SOG conversion.
-- [Khronos glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models) for small debugging GLB examples.
-
-## License
-
-Project code is released under the MIT License. See `LICENSE`.
-
-Third-party libraries and sample assets keep their original licenses.
+- [three.js](https://threejs.org/) — rendering, OrbitControls, WebXR, USDZ export
+- [@mkkellogg/gaussian-splats-3d](https://github.com/mkkellogg/GaussianSplats3D) — splat rendering (`DropInViewer`, SharedArrayBuffer disabled for GitHub Pages)
+- Poly Haven HDRIs via the drei-assets CDN for the GLB viewer's lighting presets
