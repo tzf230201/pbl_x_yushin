@@ -90,6 +90,10 @@ body {
   .btn { padding: 7px 11px; font-size: 13px; }
   /* Keep the fullscreen button up top but show icon only to save space */
   .btn-fs .fs-label { display: none; }
+  /* Let the growing action row wrap instead of overflowing */
+  .topbar { flex-wrap: wrap; }
+  .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .env-select { max-width: 130px; }
 }
 
 /* ---- AR overlay (shown during a WebXR AR session) ---- */

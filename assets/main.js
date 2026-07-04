@@ -95,7 +95,7 @@ function frameModel(object) {
   grid.position.y = -size.y / 2;
 }
 
-function loadFromURL(url, name) {
+function loadFromURL(url, name, revokeAfter = false) {
   loader.classList.remove('hidden');
   dropHint.classList.add('hidden');
 
@@ -108,7 +108,7 @@ function loadFromURL(url, name) {
       frameModel(currentModel);
       modelName.textContent = name || 'model.glb';
       loader.classList.add('hidden');
-      URL.revokeObjectURL(url);
+      if (revokeAfter) URL.revokeObjectURL(url);
       prepareUSDZ(); // pre-build USDZ for iOS AR Quick Look (no-op elsewhere)
     },
     undefined,
@@ -123,7 +123,7 @@ function loadFromURL(url, name) {
 function loadFromFile(file) {
   if (!file) return;
   const url = URL.createObjectURL(file);
-  loadFromURL(url, file.name);
+  loadFromURL(url, file.name, true);
 }
 
 // ---- File input ----
@@ -150,9 +150,12 @@ function loadModelById(key) {
 }
 modelSelect.addEventListener('change', () => loadModelById(modelSelect.value));
 
-// Deep link: index.html?model=asahigaoka
-const startModel = new URL(window.location.href).searchParams.get('model');
+// Deep links: index.html?model=asahigaoka or index.html?file=URL&name=label
+const startParams = new URL(window.location.href).searchParams;
+const startModel = startParams.get('model');
+const startFile = startParams.get('file');
 if (startModel) loadModelById(startModel);
+else if (startFile) loadFromURL(startFile, startParams.get('name') || 'model.glb');
 
 // ---- Drag & drop ----
 ['dragenter', 'dragover'].forEach((ev) =>

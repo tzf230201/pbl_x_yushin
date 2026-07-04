@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PBL x Yushin — GLB Models</title>
+    <style>
+      :root {
+        --bg: #0e1116;
+        --panel: #161b22;
+        --border: #262d38;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #4f9dff;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        padding: 24px 16px 48px;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; }
+      header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+      .logo { color: var(--accent); font-size: 20px; }
+      .accent { color: var(--accent); }
+      .nav { display: flex; gap: 8px; }
+      .back {
+        color: var(--muted); text-decoration: none; font-size: 14px;
+        padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+      }
+      .back:hover { color: var(--text); background: #1f2733; }
+      h1 { font-size: 18px; margin-bottom: 6px; }
+      .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+      .list { display: grid; gap: 10px; }
+      .card {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 16px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-decoration: none; color: var(--text);
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .card:hover { border-color: var(--accent); background: #1a212b; }
+      .card .name { font-weight: 600; font-size: 15px; }
+      .card .file { color: var(--muted); font-size: 12px; margin-top: 2px; word-break: break-all; }
+      .card .size {
+        flex-shrink: 0; color: var(--accent); font-size: 12px; font-weight: 600;
+        border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+      }
+      .note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .note code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+
+      .upload {
+        display: flex; align-items: center; gap: 14px;
+        padding: 16px;
+        margin-bottom: 14px;
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .upload:hover, .upload.dragover { border-color: var(--accent); background: rgba(79, 157, 255, 0.08); }
+      .upload-icon { font-size: 22px; color: var(--accent); }
+      .muted-s { color: var(--muted); font-size: 12px; }
+
+      /* Fullscreen iframe for viewing an uploaded file — the parent page
+         must stay alive so the blob URL keeps working. */
+      .frame-wrap { position: fixed; inset: 0; z-index: 50; background: #000; }
+      .frame-wrap iframe { width: 100%; height: 100%; border: 0; }
+      .frame-close {
+        position: absolute; top: max(10px, env(safe-area-inset-top)); right: 12px;
+        z-index: 51;
+        border: none; border-radius: 999px;
+        background: rgba(14, 17, 22, 0.85); color: var(--text);
+        padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .frame-close:hover { background: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="brand"><span class="logo">◆</span> PBL <span class="accent">x</span> Yushin — Models</div>
+        <div class="nav">
+          <a class="back" href="./">← GLB Viewer</a>
+          <a class="back" href="./splat.html">Splats (.ply)</a>
+        </div>
+      </header>
+
+      <h1>GLB models (.glb)</h1>
+      <p class="sub">Tap a model to open it in the viewer — zoom, environments, and AR included.</p>
+
+      <label class="upload" id="uploadZone">
+        <input type="file" id="glbInput" accept=".glb,.gltf" hidden />
+        <span class="upload-icon">⬆</span>
+        <span><strong>Open your own .glb file</strong><br />
+        <span class="muted-s">tap to choose, or drag &amp; drop it here</span></span>
+      </label>
+
+      <div id="list" class="list"></div>
+
+      <p class="note">
+        Direct link format: <code>glb.html?model=ID</code> or <code>index.html?model=ID</code> — useful for QR codes.<br />
+        You can also open any hosted file with <code>index.html?file=URL</code>.
+      </p>
+    </div>
+
+    <script src="assets/glb-list.js?v=1"></script>
+    <script>
+      const MODELS = window.GLB_MODELS;
+      const BASE = window.GLB_BASE;
+
+      // ---- Direct-link mode: ?model=id redirects straight to the viewer ----
+      const params = new URL(window.location.href).searchParams;
+      const id = params.get("model");
+
+      if (id && MODELS[id]) {
+        window.location.replace("./index.html?model=" + encodeURIComponent(id));
+      } else {
+        // ---- Picker mode: list all models ----
+        const list = document.getElementById("list");
+        for (const [key, m] of Object.entries(MODELS)) {
+          const a = document.createElement("a");
+          a.className = "card";
+          a.href = "./index.html?model=" + encodeURIComponent(key);
+          a.innerHTML =
+            '<div><div class="name"></div><div class="file"></div></div>' +
+            '<span class="size">' + m.mb + ' MB</span>';
+          a.querySelector(".name").textContent = m.label;
+          a.querySelector(".file").textContent = m.file + "  ·  ?model=" + key;
+          list.appendChild(a);
+        }
+
+        // ---- Local file upload (viewer opened in an iframe so the blob
+        //      URL from the chosen file stays alive) ----
+        const glbInput = document.getElementById("glbInput");
+        const uploadZone = document.getElementById("uploadZone");
+        let activeBlobUrl = null;
+
+        function openLocalFile(file) {
+          if (!file) return;
+          if (!/\.(glb|gltf)$/i.test(file.name)) {
+            alert("Please choose a .glb or .gltf file.");
+            return;
+          }
+          activeBlobUrl = URL.createObjectURL(file);
+
+          const wrap = document.createElement("div");
+          wrap.className = "frame-wrap";
+
+          const closeBtn = document.createElement("button");
+          closeBtn.className = "frame-close";
+          closeBtn.textContent = "✕ Close — " + file.name;
+          closeBtn.addEventListener("click", () => {
+            wrap.remove();
+            if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null; }
+            glbInput.value = "";
+          });
+
+          const frame = document.createElement("iframe");
+          frame.allow = "camera; gyroscope; accelerometer; xr-spatial-tracking; fullscreen";
+          frame.src = "./index.html?file=" + encodeURIComponent(activeBlobUrl) +
+                      "&name=" + encodeURIComponent(file.name);
+
+          wrap.appendChild(frame);
+          wrap.appendChild(closeBtn);
+          document.body.appendChild(wrap);
+        }
+
+        glbInput.addEventListener("change", (e) => openLocalFile(e.target.files[0]));
+
+        ["dragenter", "dragover"].forEach((ev) =>
+          uploadZone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            uploadZone.classList.add("dragover");
+          })
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          uploadZone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove("dragover");
+          })
+        );
+        uploadZone.addEventListener("drop", (e) => openLocalFile(e.dataTransfer.files[0]));
+      }
+    </script>
+  </body>
+</html>
