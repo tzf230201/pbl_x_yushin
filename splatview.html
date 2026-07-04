@@ -108,6 +108,7 @@
           <input type="file" id="plyInput" accept=".ply,.splat,.ksplat" hidden />
           Open .ply
         </label>
+        <a id="markerBtn" class="btn btn-ar" href="./splatmarker.html" title="Marker AR — anchored via a printed marker">▣ Marker</a>
         <button id="arBtn" class="btn btn-ar" hidden>◈ AR</button>
       </div>
     </header>
@@ -242,6 +243,11 @@
     const id = (window.SPLAT_ALIASES && window.SPLAT_ALIASES[rawId]) || rawId;
     const fileParam = params.get('file');
     const nameParam = params.get('name');
+
+    // Marker AR page keeps the same selection (works for blob files too,
+    // as long as navigation stays within this document's lifetime chain)
+    document.getElementById('markerBtn').href =
+      './splatmarker.html' + window.location.search;
 
     let loadedOnce = false;
 

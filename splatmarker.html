@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PBL x Yushin — Marker AR</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --border: #262d38;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #4f9dff;
+      --ok: #3fb950;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #000; color: var(--text); overflow: hidden;
+    }
+    /* AR.js appends its own <video>; keep it behind the canvas */
+    video { position: absolute; top: 0; left: 0; z-index: 0; }
+    canvas.ar-canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+
+    .hud-top {
+      position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top));
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 999px;
+      background: rgba(14,17,22,0.85); border: 1px solid var(--border);
+      font-size: 13px; z-index: 20; max-width: calc(100% - 20px);
+      white-space: nowrap;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.on { background: var(--ok); }
+
+    .hud-bottom {
+      position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex; gap: 10px; z-index: 20;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 16px; border-radius: 999px;
+      background: rgba(14,17,22,0.85); border: 1px solid var(--border);
+      color: var(--text); font-size: 13px; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .loader {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: var(--bg);
+    }
+    .loader.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #pct { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="loader" class="loader">
+    <div class="spinner"></div>
+    <span id="pct">Loading…</span>
+  </div>
+
+  <div class="hud-top">
+    <span id="dot" class="dot"></span>
+    <span id="status">Point the camera at the Hiro marker</span>
+  </div>
+
+  <div class="hud-bottom">
+    <a class="btn" id="backBtn" href="./splat.html">← Back</a>
+    <a class="btn primary" href="./assets/ar/marker-hiro.jpg" target="_blank" rel="noopener">Get marker</a>
+  </div>
+
+  <script src="assets/splats-list.js?v=2"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+    const loaderEl = document.getElementById('loader');
+    const pctEl    = document.getElementById('pct');
+    const statusEl = document.getElementById('status');
+    const dotEl    = document.getElementById('dot');
+
+    // ---- Load AR.js (UMD build that reads the global THREE) ----
+    window.THREE = THREE;
+    pctEl.textContent = 'Loading AR engine…';
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.5/three.js/build/ar-threex.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load AR.js'));
+      document.head.appendChild(s);
+    });
+    const THREEx = window.THREEx;
+
+    // ---- three.js ----
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.domElement.classList.add('ar-canvas');
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.Camera(); // projection comes from ARToolkit
+    scene.add(camera);
+
+    // markerRoot: pose driven by the marker tracker.
+    // trackedRoot: mirrors the last seen pose so the scan does not vanish
+    // the instant the marker leaves the frame.
+    const markerRoot = new THREE.Group();
+    scene.add(markerRoot);
+    const trackedRoot = new THREE.Group();
+    trackedRoot.matrixAutoUpdate = false;
+    scene.add(trackedRoot);
+
+    // splatHolder sits on the marker plane (x/z plane, +y up), so the scan
+    // stands on the printed marker like a miniature on a coaster.
+    const splatHolder = new THREE.Group();
+    splatHolder.visible = false;
+    trackedRoot.add(splatHolder);
+
+    const splatFlip = new THREE.Group();
+    splatFlip.rotation.z = Math.PI; // splat data is stored Y-down
+    splatHolder.add(splatFlip);
+
+    const splatViewer = new GaussianSplats3D.DropInViewer({
+      sharedMemoryForWorkers: false,
+      gpuAcceleratedSort: false,
+    });
+    splatFlip.add(splatViewer);
+
+    // ---- AR toolkit source (camera feed) + context (tracking) ----
+    const arSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
+    const arContext = new THREEx.ArToolkitContext({
+      cameraParametersUrl: 'assets/ar/camera_para.dat',
+      detectionMode: 'mono',
+    });
+
+    new THREEx.ArMarkerControls(arContext, markerRoot, {
+      type: 'pattern',
+      patternUrl: 'assets/ar/patt.hiro',
+      smooth: true,
+      smoothCount: 8,
+      smoothTolerance: 0.01,
+    });
+
+    function onResize() {
+      arSource.onResizeElement();
+      arSource.copyElementSizeTo(renderer.domElement);
+      if (arContext.arController !== null) {
+        arSource.copyElementSizeTo(arContext.arController.canvas);
+      }
+    }
+    window.addEventListener('resize', onResize);
+
+    pctEl.textContent = 'Starting camera…';
+    await new Promise((resolve, reject) => {
+      arSource.init(() => {
+        // give the <video> a moment to get real dimensions
+        setTimeout(() => { onResize(); resolve(); }, 300);
+      }, (err) => reject(err || new Error('Camera failed')));
+    }).catch((err) => {
+      loaderEl.classList.add('hidden');
+      statusEl.textContent = 'Camera error — allow camera access and reload';
+      throw err;
+    });
+
+    await new Promise((resolve) => {
+      arContext.init(() => {
+        camera.projectionMatrix.copy(arContext.getProjectionMatrix());
+        camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+        onResize();
+        resolve();
+      });
+    });
+
+    // ---- Load the splat ----
+    const params = new URL(window.location.href).searchParams;
+    const rawId = params.get('splat') || params.get('scan');
+    const id = (window.SPLAT_ALIASES && window.SPLAT_ALIASES[rawId]) || rawId;
+    const fileParam = params.get('file');
+
+    // Preserve params on the back link (returns to the regular viewer)
+    document.getElementById('backBtn').href = './splatview.html' + window.location.search;
+
+    const MARKER_TARGET = 1.6; // marker widths — how big the miniature appears
+
+    function fitToMarker() {
+      const box = new THREE.Box3().setFromObject(splatHolder);
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const s = (MARKER_TARGET / maxDim) * splatHolder.scale.x;
+      splatHolder.scale.setScalar(s);
+      const box2 = new THREE.Box3().setFromObject(splatHolder);
+      const center = box2.getCenter(new THREE.Vector3());
+      splatHolder.position.x += -center.x;
+      splatHolder.position.z += -center.z;
+      splatHolder.position.y += -box2.min.y;
+    }
+
+    async function loadSplat(url, label, forcePly) {
+      pctEl.textContent = 'Downloading ' + label + '…';
+      try {
+        const options = {
+          showLoadingUI: false,
+          progressiveLoad: false,
+          onProgress: (pct, _lbl, stage) => {
+            pctEl.textContent = (stage === 1 ? 'Processing ' : 'Downloading ') +
+              label + (pct != null ? ' — ' + Math.round(pct) + '%' : '…');
+          },
+        };
+        if (forcePly) options.format = GaussianSplats3D.SceneFormat.Ply;
+        await splatViewer.addSplatScene(url, options);
+        fitToMarker();
+        loaderEl.classList.add('hidden');
+      } catch (err) {
+        console.error(err);
+        loaderEl.classList.add('hidden');
+        statusEl.textContent = 'Failed to load splat';
+        alert('Failed to load splat: ' + (err && err.message ? err.message : err));
+      }
+    }
+
+    if (fileParam) {
+      loadSplat(fileParam, params.get('name') || 'file', !/\.(ply|splat|ksplat)$/i.test(fileParam));
+    } else if (id && window.SPLATS[id]) {
+      const s = window.SPLATS[id];
+      loadSplat(window.SPLATS_BASE + encodeURIComponent(s.file), s.label, false);
+    } else {
+      loaderEl.classList.add('hidden');
+      statusEl.textContent = 'No scan selected — go back and pick one';
+    }
+
+    // ---- Touch: pinch to scale, one-finger drag to rotate ----
+    let pinchStart = 0, pinchBase = 1, lastX = null;
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        lastX = null;
+        pinchStart = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY);
+        pinchBase = splatHolder.scale.x;
+      } else if (e.touches.length === 1) {
+        lastX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && pinchStart) {
+        const d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY);
+        // rescale around the base so the scan stays seated on the marker
+        splatHolder.scale.setScalar(THREE.MathUtils.clamp(pinchBase * (d / pinchStart), 0.05, 20));
+        const box = new THREE.Box3().setFromObject(splatHolder);
+        if (!box.isEmpty()) splatHolder.position.y += -box.min.y;
+      } else if (e.touches.length === 1 && lastX != null) {
+        const dx = e.touches[0].clientX - lastX;
+        lastX = e.touches[0].clientX;
+        splatHolder.rotation.y += dx * 0.008;
+      }
+    }, { passive: true });
+    window.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) pinchStart = 0;
+      if (e.touches.length < 1) lastX = null;
+    }, { passive: true });
+
+    // ---- Render loop ----
+    let everFound = false;
+    renderer.setAnimationLoop(() => {
+      if (arSource.ready) {
+        arContext.update(arSource.domElement);
+        if (markerRoot.visible) {
+          trackedRoot.matrix.copy(markerRoot.matrix);
+          if (!everFound) {
+            everFound = true;
+            splatHolder.visible = true;
+          }
+          dotEl.classList.add('on');
+          statusEl.textContent = 'Tracking — walk around the marker';
+        } else {
+          dotEl.classList.remove('on');
+          statusEl.textContent = everFound
+            ? 'Marker lost — point the camera back at it'
+            : 'Point the camera at the Hiro marker';
+        }
+      }
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>
