@@ -4,5 +4,7 @@
 window.GLB_BASE = "./public/assets/scans/";
 
 window.GLB_MODELS = {
-  asahigaoka: { file: "Asahigaoka.glb", label: "Asahigaoka (mesh scan)", mb: 2 },
+  asahigaoka:    { file: "Asahigaoka.glb",  label: "Asahigaoka (mesh scan)", mb: 2 },
+  "label-text":  { file: "label_text.glb",  label: "Label text",             mb: 5 },
+  "panel-whole": { file: "panel_whole.glb", label: "Panel — whole",          mb: 17 },
 };
