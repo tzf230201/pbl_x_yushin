@@ -1,16 +1,17 @@
 // Shared list of Gaussian-splat scans, used by splat.html (picker)
 // and splatview.html (mobile/AR viewer). Files live in SPLATS_BASE.
+// Scans are stored as compressed .ksplat (converted from the Scaniverse
+// .ply exports — ~10x smaller, much faster to load).
 window.SPLATS_BASE = "./public/assets/splats/";
 
 window.SPLATS = {
-  asahigaoka:        { file: "Asahigaoka.ply",                   label: "Asahigaoka",              mb: 50 },
-  koremasa:          { file: "Koremasa.ply",                     label: "Koremasa",                mb: 87 },
-  "scaniverse-0702": { file: "Scaniverse 2026-07-02 111133.ply", label: "Scaniverse 2026-07-02",   mb: 6 },
-  "thickline-whole": { file: "scan_thickline_whole.ply",         label: "Thick line — whole",      mb: 81 },
-  "thickline-left":  { file: "scan_thickline_leftside (1).ply",  label: "Thick line — left side",  mb: 77 },
-  "thickline-right": { file: "scan_thickline_rightside.ply",     label: "Thick line — right side", mb: 61 },
-  "thinline-left":   { file: "scan_thinline_leftside.ply",       label: "Thin line — left side",   mb: 74 },
-  "thinline-wire":   { file: "scan_thinline_wirenumber.ply",     label: "Thin line — wire number", mb: 28 },
+  asahigaoka:        { file: "asahigaoka.ksplat",      label: "Asahigaoka",              mb: 5 },
+  koremasa:          { file: "koremasa.ksplat",        label: "Koremasa",                mb: 9 },
+  "thickline-whole": { file: "thickline-whole.ksplat", label: "Thick line — whole",      mb: 8 },
+  "thickline-left":  { file: "thickline-left.ksplat",  label: "Thick line — left side",  mb: 8 },
+  "thickline-right": { file: "thickline-right.ksplat", label: "Thick line — right side", mb: 6 },
+  "thinline-left":   { file: "thinline-left.ksplat",   label: "Thin line — left side",   mb: 8 },
+  "thinline-wire":   { file: "thinline-wire.ksplat",   label: "Thin line — wire number", mb: 3 },
 };
 
 // Back-compat aliases used by older links/README

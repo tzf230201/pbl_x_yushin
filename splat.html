@@ -94,10 +94,10 @@
       </header>
 
       <h1>Gaussian Splat scans (.ply)</h1>
-      <p class="sub">Tap a scan to open it — works on phones, with an AR mode. Each card also links to the classic SuperSplat viewer.</p>
+      <p class="sub">Tap a scan to open it — works on phones, with an AR mode.</p>
 
       <label class="upload" id="uploadZone">
-        <input type="file" id="plyInput" accept=".ply,.sog,.spz" hidden />
+        <input type="file" id="plyInput" accept=".ply,.splat,.ksplat" hidden />
         <span class="upload-icon">⬆</span>
         <span><strong>Open your own .ply file</strong><br />
         <span class="muted-s">tap to choose, or drag &amp; drop it here</span></span>
@@ -117,29 +117,16 @@
       const ALIASES = window.SPLAT_ALIASES;
       const BASE = window.SPLATS_BASE;
 
-      function viewerUrlFor(fileUrl) {
-        const viewerUrl = new URL("./splat-viewer/index.html", window.location.href);
-        viewerUrl.searchParams.set("content", new URL(fileUrl, window.location.href).href);
-        viewerUrl.searchParams.set("settings", new URL("./splat-viewer/settings.json", window.location.href).href);
-        viewerUrl.searchParams.set("webgl", "");
-        viewerUrl.searchParams.set("aa", "");
-        return viewerUrl.href;
-      }
-
       // ---- Direct-link mode: ?splat=id or ?file=url redirects straight to the viewer ----
       const params = new URL(window.location.href).searchParams;
       const rawId = params.get("splat") || params.get("scan");
       const id = ALIASES[rawId] || rawId;
       const fileParam = params.get("file");
 
-      const wantsSupersplat = params.get("viewer") === "supersplat";
-
       if (fileParam) {
-        window.location.replace(viewerUrlFor(fileParam));
-      } else if (id && SPLATS[id] && wantsSupersplat) {
-        window.location.replace(viewerUrlFor(BASE + encodeURIComponent(SPLATS[id].file)));
+        window.location.replace("./splatview.html?file=" + encodeURIComponent(fileParam));
       } else if (id && SPLATS[id]) {
-        // Default direct links now open the mobile/AR viewer
+        // Direct links open the mobile/AR viewer
         window.location.replace("./splatview.html?splat=" + encodeURIComponent(id));
       } else {
         // ---- Picker mode: list all scans ----
@@ -150,13 +137,9 @@
           a.href = "./splatview.html?splat=" + encodeURIComponent(key);
           a.innerHTML =
             '<div><div class="name"></div><div class="file"></div></div>' +
-            '<span class="side"><span class="size">' + s.mb + " MB</span>" +
-            '<a class="alt" href="#">SuperSplat</a></span>';
+            '<span class="size">' + s.mb + " MB</span>';
           a.querySelector(".name").textContent = s.label;
           a.querySelector(".file").textContent = s.file + "  ·  ?splat=" + key;
-          const alt = a.querySelector(".alt");
-          alt.href = viewerUrlFor(BASE + encodeURIComponent(s.file));
-          alt.addEventListener("click", (e) => e.stopPropagation());
           list.appendChild(a);
         }
 
@@ -169,7 +152,7 @@
 
         function openLocalFile(file) {
           if (!file) return;
-          if (!/\.(ply|sog|spz)$/i.test(file.name)) {
+          if (!/\.(ply|splat|ksplat)$/i.test(file.name)) {
             alert("Please choose a .ply file (Gaussian splat export).");
             return;
           }
