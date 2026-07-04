@@ -25,6 +25,9 @@
       </div>
       <div class="topbar-actions">
         <a class="btn btn-ghost" href="./splat.html">Splats (.ply)</a>
+        <select id="modelSelect" class="env-select" title="Load a model from the project">
+          <option value="" selected disabled>📦 Models…</option>
+        </select>
         <select id="envSelect" class="env-select" title="Environment / lighting">
           <option value="studio">🎬 Studio</option>
           <option value="sunset">🌇 Sunset</option>
@@ -98,6 +101,7 @@
     <img alt="" width="1" height="1" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />
   </a>
 
+  <script src="assets/glb-list.js?v=1"></script>
   <!-- Three.js via CDN import map -->
   <script type="importmap">
   {

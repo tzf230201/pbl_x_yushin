@@ -131,6 +131,29 @@ fileInput.addEventListener('change', (e) => {
   loadFromFile(e.target.files[0]);
 });
 
+// ---- Project model list (assets/glb-list.js) ----
+const modelSelect = document.getElementById('modelSelect');
+if (window.GLB_MODELS) {
+  for (const [key, m] of Object.entries(window.GLB_MODELS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = m.label + ' (' + m.mb + ' MB)';
+    modelSelect.appendChild(opt);
+  }
+}
+function loadModelById(key) {
+  const m = window.GLB_MODELS && window.GLB_MODELS[key];
+  if (!m) return false;
+  loadFromURL(window.GLB_BASE + encodeURIComponent(m.file), m.label);
+  modelSelect.value = key;
+  return true;
+}
+modelSelect.addEventListener('change', () => loadModelById(modelSelect.value));
+
+// Deep link: index.html?model=asahigaoka
+const startModel = new URL(window.location.href).searchParams.get('model');
+if (startModel) loadModelById(startModel);
+
 // ---- Drag & drop ----
 ['dragenter', 'dragover'].forEach((ev) =>
   viewer.addEventListener(ev, (e) => {
